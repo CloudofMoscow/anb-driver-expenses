@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="ANB Driver Expenses">
+  <defs>
+    <linearGradient id="red" x1="112" x2="408" y1="96" y2="424" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#ff5353"/>
+      <stop offset="1" stop-color="#c91515"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#000000" flood-opacity="0.45"/>
+    </filter>
+  </defs>
+
+  <rect width="512" height="512" rx="112" fill="#050505"/>
+  <path d="M360 0h40c62 0 112 50 112 112v116L360 0Z" fill="url(#red)"/>
+  <path d="M0 360 152 512H112C50 512 0 462 0 400v-40Z" fill="#171717"/>
+
+  <g filter="url(#shadow)">
+    <rect x="58" y="58" width="396" height="396" rx="86" fill="#0b0b0b" stroke="#2a2a2a" stroke-width="8"/>
+    <path d="M86 378h340" stroke="url(#red)" stroke-width="18" stroke-linecap="round"/>
+  </g>
+
+  <text x="256" y="260"
+        fill="#ffffff"
+        font-family="Arial Black, Arial, Helvetica, sans-serif"
+        font-size="118"
+        font-weight="900"
+        text-anchor="middle"
+        letter-spacing="0">ANB</text>
+
+  <g transform="translate(158 296)">
+    <rect x="0" y="0" width="196" height="58" rx="16" fill="#ffffff"/>
+    <path d="M34 20h76M34 38h52" stroke="#111111" stroke-width="9" stroke-linecap="round"/>
+    <path d="m135 31 18 16 34-36" fill="none" stroke="#e43a3a" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+
+  <circle cx="118" cy="118" r="20" fill="#e43a3a"/>
+</svg>

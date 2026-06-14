@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#000000">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Расходы">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Расходы водителя</title>
+    <link rel="manifest" href="./manifest.webmanifest?v=11">
+    <link rel="icon" href="./icon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="./apple-touch-icon.png">
+    <link rel="stylesheet" href="./styles.css?v=11">
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div class="brand">
+          <span class="brand-mark">
+            <img src="./anb-logo.svg" alt="ANB Group">
+          </span>
+          <div>
+            <p class="eyebrow">ANB Group</p>
+            <h1>Расходы водителя</h1>
+          </div>
+        </div>
+        <div class="status-pill" id="storageStatus">На телефоне</div>
+      </header>
+
+      <main>
+        <section class="summary-grid" aria-label="Сводка">
+          <div class="summary-item">
+            <span>Сегодня</span>
+            <strong id="todayTotal">0 ₽</strong>
+          </div>
+          <div class="summary-item">
+            <span>Месяц</span>
+            <strong id="monthTotal">0 ₽</strong>
+          </div>
+          <div class="summary-item">
+            <span>Записей</span>
+            <strong id="entryCount">0</strong>
+          </div>
+        </section>
+
+        <nav class="tabs" aria-label="Разделы">
+          <button class="tab-button active" type="button" data-tab="entry">Новый</button>
+          <button class="tab-button" type="button" data-tab="journal">Журнал</button>
+          <button class="tab-button" type="button" data-tab="profile">Профиль</button>
+          <button class="tab-button" type="button" data-tab="export">Отчет</button>
+        </nav>
+
+        <section class="tab-panel active" id="entryPanel" data-panel="entry">
+          <form class="expense-form" id="expenseForm" autocomplete="on">
+            <div class="field-row two">
+              <label>
+                <span>Дата</span>
+                <input id="date" name="date" type="date" required>
+              </label>
+              <label>
+                <span>Сумма, ₽</span>
+                <input id="amount" name="amount" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0" required>
+              </label>
+            </div>
+
+            <div class="field-row two">
+              <label>
+                <span>Водитель</span>
+                <input id="driver" name="driver" type="text" placeholder="ФИО">
+              </label>
+              <label>
+                <span>Машина</span>
+                <input id="vehicle" name="vehicle" type="text" placeholder="Номер">
+              </label>
+            </div>
+
+            <div class="field-row two">
+              <label>
+                <span>Статус машины</span>
+                <select id="vehicleStatus" name="vehicleStatus">
+                  <option>В рейсе</option>
+                  <option>Стоянка</option>
+                  <option>Ожидание загрузки</option>
+                  <option>Ожидание выгрузки</option>
+                </select>
+              </label>
+              <label>
+                <span>Рейс / место</span>
+                <input id="route" name="route" type="text" placeholder="Москва - Казань, стоянка или склад">
+              </label>
+            </div>
+
+            <div class="field-row two">
+              <label>
+                <span>Категория</span>
+                <select id="category" name="category">
+                  <option>Топливо</option>
+                  <option>Платные дороги</option>
+                  <option>Дорожные проверки / штрафы</option>
+                  <option>Парковка</option>
+                  <option>Стоянка</option>
+                  <option>Ремонт</option>
+                  <option>Мойка</option>
+                  <option>Связь</option>
+                  <option>Документы</option>
+                  <option>Прочее</option>
+                </select>
+              </label>
+              <label>
+                <span>Оплата</span>
+                <select id="payment" name="payment">
+                  <option>Наличные</option>
+                  <option>Карта</option>
+                  <option>Карта компании</option>
+                  <option>Без оплаты</option>
+                </select>
+              </label>
+            </div>
+
+            <label>
+              <span>Кому оплачено</span>
+              <input id="supplier" name="supplier" type="text" placeholder="АЗС, стоянка, сервис, магазин">
+              <small class="field-hint">Место или организация, где возник расход.</small>
+            </label>
+
+            <label class="file-field">
+              <span>Чек</span>
+              <input id="receipt" name="receipt" type="file" accept="image/*,application/pdf">
+              <strong id="receiptLabel">Прикрепить файл или фото</strong>
+            </label>
+
+            <label>
+              <span>Комментарий</span>
+              <textarea id="note" name="note" rows="3" placeholder="Коротко по расходу"></textarea>
+            </label>
+
+            <button class="primary-action" type="submit">Сохранить расход</button>
+          </form>
+        </section>
+
+        <section class="tab-panel" id="journalPanel" data-panel="journal">
+          <div class="toolbar">
+            <label class="search-field">
+              <span>Поиск</span>
+              <input id="search" type="search" placeholder="Категория, место, водитель">
+            </label>
+            <button class="ghost-action" id="clearSearch" type="button">Сброс</button>
+          </div>
+          <div class="expense-list" id="expenseList"></div>
+          <p class="empty-state" id="emptyState">Записей пока нет</p>
+        </section>
+
+        <section class="tab-panel" id="profilePanel" data-panel="profile">
+          <form class="profile-form" id="profileForm" autocomplete="on">
+            <div class="profile-heading">
+              <h2>Профиль водителя</h2>
+              <p>Эти данные будут автоматически подставляться в новый расход.</p>
+            </div>
+            <div class="field-row two">
+              <label>
+                <span>Водитель</span>
+                <input id="profileDriver" name="profileDriver" type="text" placeholder="ФИО">
+              </label>
+              <label>
+                <span>Машина</span>
+                <input id="profileVehicle" name="profileVehicle" type="text" placeholder="Номер">
+              </label>
+            </div>
+            <button class="primary-action" type="submit">Сохранить профиль</button>
+          </form>
+        </section>
+
+        <section class="tab-panel" id="exportPanel" data-panel="export">
+          <form class="report-card" id="reportForm">
+            <div class="profile-heading">
+              <h2>Отчет для офиса</h2>
+              <p>Выберите период, приложение соберет Excel и чеки в один архив.</p>
+            </div>
+
+            <label>
+              <span>Период</span>
+              <select id="reportPeriod" name="reportPeriod">
+                <option value="current-week">Текущая неделя</option>
+                <option value="previous-week">Прошлая неделя</option>
+                <option value="current-month">Текущий месяц</option>
+                <option value="previous-month">Прошлый месяц</option>
+                <option value="custom">Свои даты</option>
+              </select>
+            </label>
+
+            <div class="field-row two report-custom-range" id="reportCustomRange" hidden>
+              <label>
+                <span>С даты</span>
+                <input id="reportFrom" name="reportFrom" type="date">
+              </label>
+              <label>
+                <span>По дату</span>
+                <input id="reportTo" name="reportTo" type="date">
+              </label>
+            </div>
+
+            <div class="report-summary" id="reportSummary">Нет данных для отчета</div>
+
+            <div class="report-actions">
+              <button class="primary-action" id="shareReport" type="button">Отправить отчет</button>
+              <button class="secondary-action" id="downloadReport" type="button">Скачать архив</button>
+            </div>
+          </form>
+
+          <div class="export-actions">
+            <button class="primary-action" id="exportExcel" type="button">Скачать Excel</button>
+            <button class="secondary-action" id="exportArchive" type="button">Архив с чеками</button>
+            <button class="secondary-action" id="exportBackup" type="button">Резервная копия</button>
+            <label class="import-button">
+              <span>Загрузить копию</span>
+              <input id="importBackup" type="file" accept="application/json">
+            </label>
+          </div>
+
+          <div class="settings-strip">
+            <button class="ghost-action danger" id="clearAll" type="button">Очистить журнал</button>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script src="./app.js?v=11" type="module"></script>
+  </body>
+</html>
