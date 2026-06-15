@@ -8,10 +8,10 @@
     <meta name="apple-mobile-web-app-title" content="Расходы">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Расходы водителя</title>
-    <link rel="manifest" href="./manifest.webmanifest?v=11">
+    <link rel="manifest" href="./manifest.webmanifest?v=12">
     <link rel="icon" href="./icon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="./apple-touch-icon.png">
-    <link rel="stylesheet" href="./styles.css?v=11">
+    <link rel="stylesheet" href="./styles.css?v=12">
   </head>
   <body>
     <div class="app-shell">
@@ -130,6 +130,15 @@
               <strong id="receiptLabel">Прикрепить файл или фото</strong>
             </label>
 
+            <div class="receipt-preview" id="receiptPreview" hidden>
+              <img id="receiptPreviewImage" alt="Предпросмотр чека" hidden>
+              <div>
+                <strong id="receiptPreviewTitle">Чек готов</strong>
+                <span id="receiptPreviewMeta"></span>
+              </div>
+              <button class="ghost-action compact-action" id="receiptPreviewOpen" type="button">Проверить чек</button>
+            </div>
+
             <label>
               <span>Комментарий</span>
               <textarea id="note" name="note" rows="3" placeholder="Коротко по расходу"></textarea>
@@ -202,30 +211,41 @@
 
             <div class="report-summary" id="reportSummary">Нет данных для отчета</div>
 
+            <div class="device-panel">
+              <div>
+                <span>Устройство</span>
+                <strong id="platformLabel">Определяем</strong>
+              </div>
+              <div>
+                <span>Отправка</span>
+                <strong id="shareModeLabel">Определяем</strong>
+              </div>
+            </div>
+
             <div class="report-actions">
               <button class="primary-action" id="shareReport" type="button">Отправить отчет</button>
-              <button class="secondary-action" id="downloadReport" type="button">Скачать архив</button>
             </div>
           </form>
 
-          <div class="export-actions">
-            <button class="primary-action" id="exportExcel" type="button">Скачать Excel</button>
-            <button class="secondary-action" id="exportArchive" type="button">Архив с чеками</button>
-            <button class="secondary-action" id="exportBackup" type="button">Резервная копия</button>
-            <label class="import-button">
-              <span>Загрузить копию</span>
-              <input id="importBackup" type="file" accept="application/json">
-            </label>
-          </div>
-
-          <div class="settings-strip">
-            <button class="ghost-action danger" id="clearAll" type="button">Очистить журнал</button>
-          </div>
+          <details class="advanced-report">
+            <summary>Дополнительно для офиса</summary>
+            <div class="export-actions">
+              <button class="secondary-action" id="downloadReport" type="button">Скачать ZIP</button>
+              <button class="secondary-action" id="exportExcel" type="button">Только Excel</button>
+              <button class="secondary-action" id="exportArchive" type="button">Все чеки</button>
+              <button class="secondary-action" id="exportBackup" type="button">Резервная копия</button>
+              <label class="import-button">
+                <span>Загрузить копию</span>
+                <input id="importBackup" type="file" accept="application/json">
+              </label>
+              <button class="ghost-action danger" id="clearAll" type="button">Очистить журнал</button>
+            </div>
+          </details>
         </section>
       </main>
     </div>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="./app.js?v=11" type="module"></script>
+    <script src="./app.js?v=12" type="module"></script>
   </body>
 </html>

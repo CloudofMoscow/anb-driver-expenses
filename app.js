@@ -17,6 +17,11 @@ const els = {
   supplier: document.querySelector("#supplier"),
   receipt: document.querySelector("#receipt"),
   receiptLabel: document.querySelector("#receiptLabel"),
+  receiptPreview: document.querySelector("#receiptPreview"),
+  receiptPreviewImage: document.querySelector("#receiptPreviewImage"),
+  receiptPreviewTitle: document.querySelector("#receiptPreviewTitle"),
+  receiptPreviewMeta: document.querySelector("#receiptPreviewMeta"),
+  receiptPreviewOpen: document.querySelector("#receiptPreviewOpen"),
   note: document.querySelector("#note"),
   tabs: document.querySelectorAll(".tab-button"),
   panels: document.querySelectorAll(".tab-panel"),
@@ -39,6 +44,8 @@ const els = {
   reportSummary: document.querySelector("#reportSummary"),
   shareReport: document.querySelector("#shareReport"),
   downloadReport: document.querySelector("#downloadReport"),
+  platformLabel: document.querySelector("#platformLabel"),
+  shareModeLabel: document.querySelector("#shareModeLabel"),
   profileForm: document.querySelector("#profileForm"),
   profileDriver: document.querySelector("#profileDriver"),
   profileVehicle: document.querySelector("#profileVehicle"),
@@ -50,6 +57,12 @@ const els = {
 let db;
 let expenses = [];
 let toastTimer;
+let selectedReceipt = null;
+let selectedReceiptPreviewUrl = "";
+let receiptProcessing = false;
+
+const IMAGE_MAX_SIDE = 1900;
+const IMAGE_QUALITY = 0.86;
 
 function openDb() {
   return new Promise((resolve, reject) => {
@@ -110,6 +123,40 @@ function formatDate(value) {
   return new Intl.DateTimeFormat("ru-RU").format(new Date(`${value}T12:00:00`));
 }
 
+function formatBytes(bytes) {
+  const value = Number(bytes || 0);
+  if (value < 1024 * 1024) return `${Math.max(1, Math.round(value / 1024))} КБ`;
+  return `${(value / 1024 / 1024).toFixed(value < 10 * 1024 * 1024 ? 1 : 0)} МБ`;
+}
+
+function detectPlatform() {
+  const ua = navigator.userAgent || "";
+  const platform = navigator.userAgentData?.platform || navigator.platform || "";
+  const isIpadOs = /Mac/.test(platform) && navigator.maxTouchPoints > 1;
+
+  if (/Android/i.test(ua)) return "Android";
+  if (/iPhone|iPod/i.test(ua)) return "iPhone / iOS";
+  if (/iPad/i.test(ua) || isIpadOs) return "iPad / iPadOS";
+  if (/Windows/i.test(platform) || /Windows/i.test(ua)) return "Windows";
+  if (/Mac/i.test(platform) || /Macintosh/i.test(ua)) return "Mac";
+  if (/Linux/i.test(platform) || /Linux/i.test(ua)) return "Linux";
+  return "Устройство";
+}
+
+function updatePlatformInfo() {
+  if (els.platformLabel) els.platformLabel.textContent = detectPlatform();
+  if (els.shareModeLabel) {
+    const canShareZip = typeof File === "function"
+      && navigator.share
+      && (!navigator.canShare || navigator.canShare({
+        files: [new File([""], "report.zip", { type: "application/zip" })]
+      }));
+    els.shareModeLabel.textContent = canShareZip
+      ? "Через меню отправки"
+      : "Скачивание ZIP";
+  }
+}
+
 function todayIso() {
   const now = new Date();
   const local = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
@@ -133,6 +180,111 @@ function safeFileName(value, fallback = "file") {
     .replace(/[\\/:*?"<>|]+/g, "-")
     .replace(/\s+/g, " ")
     .slice(0, 120) || fallback;
+}
+
+function clearReceiptPreview() {
+  if (selectedReceiptPreviewUrl) URL.revokeObjectURL(selectedReceiptPreviewUrl);
+  selectedReceipt = null;
+  selectedReceiptPreviewUrl = "";
+  if (els.receiptPreview) els.receiptPreview.hidden = true;
+  if (els.receiptPreviewImage) {
+    els.receiptPreviewImage.removeAttribute("src");
+    els.receiptPreviewImage.hidden = true;
+  }
+  if (els.receiptPreviewMeta) els.receiptPreviewMeta.textContent = "";
+}
+
+function imageName(name) {
+  const base = String(name || "check").replace(/\.[a-z0-9]{2,8}$/i, "");
+  return `${safeFileName(base, "check")}.jpg`;
+}
+
+function loadImageFromFile(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const image = new Image();
+    image.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(image);
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("Не удалось открыть фото чека"));
+    };
+    image.src = url;
+  });
+}
+
+function canvasToBlob(canvas, type, quality) {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob) resolve(blob);
+      else reject(new Error("Не удалось подготовить фото"));
+    }, type, quality);
+  });
+}
+
+async function compressReceiptImage(file) {
+  const image = await loadImageFromFile(file);
+  const scale = Math.min(1, IMAGE_MAX_SIDE / Math.max(image.naturalWidth, image.naturalHeight));
+  const width = Math.max(1, Math.round(image.naturalWidth * scale));
+  const height = Math.max(1, Math.round(image.naturalHeight * scale));
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext("2d", { alpha: false });
+  context.fillStyle = "#fff";
+  context.fillRect(0, 0, width, height);
+  context.drawImage(image, 0, 0, width, height);
+
+  const blob = await canvasToBlob(canvas, "image/jpeg", IMAGE_QUALITY);
+  if (blob.size >= file.size && file.type === "image/jpeg") return file;
+
+  return new File([blob], imageName(file.name), {
+    type: "image/jpeg",
+    lastModified: Date.now()
+  });
+}
+
+async function prepareReceipt(file) {
+  if (!file) {
+    clearReceiptPreview();
+    return;
+  }
+
+  receiptProcessing = true;
+  clearReceiptPreview();
+  els.receiptLabel.textContent = "Готовим чек...";
+
+  try {
+    const isImage = file.type.startsWith("image/");
+    const prepared = isImage ? await compressReceiptImage(file) : file;
+    selectedReceipt = prepared;
+    selectedReceiptPreviewUrl = URL.createObjectURL(prepared);
+    els.receiptLabel.textContent = prepared.name;
+    els.receiptPreviewTitle.textContent = isImage ? "Фото чека готово" : "Файл чека готов";
+    if (els.receiptPreviewImage) {
+      els.receiptPreviewImage.src = isImage ? selectedReceiptPreviewUrl : "";
+      els.receiptPreviewImage.hidden = !isImage;
+    }
+    els.receiptPreviewMeta.textContent = isImage && prepared.size < file.size
+      ? `${formatBytes(file.size)} → ${formatBytes(prepared.size)}`
+      : `${formatBytes(prepared.size)}, без сжатия`;
+    els.receiptPreview.hidden = false;
+  } catch (error) {
+    selectedReceipt = file;
+    selectedReceiptPreviewUrl = URL.createObjectURL(file);
+    els.receiptLabel.textContent = file.name;
+    els.receiptPreviewTitle.textContent = "Чек сохранится без сжатия";
+    if (els.receiptPreviewImage) {
+      els.receiptPreviewImage.src = file.type.startsWith("image/") ? selectedReceiptPreviewUrl : "";
+      els.receiptPreviewImage.hidden = !file.type.startsWith("image/");
+    }
+    els.receiptPreviewMeta.textContent = `${formatBytes(file.size)}, ${error.message}`;
+    els.receiptPreview.hidden = false;
+  } finally {
+    receiptProcessing = false;
+  }
 }
 
 function getSettings() {
@@ -159,7 +311,7 @@ function hydrateSettings() {
 }
 
 function collectForm() {
-  const file = els.receipt.files[0] || null;
+  const file = selectedReceipt || els.receipt.files[0] || null;
   const amount = Number(String(els.amount.value).replace(",", "."));
 
   return {
@@ -190,6 +342,7 @@ function resetFormAfterSave() {
   els.note.value = "";
   els.receipt.value = "";
   els.receiptLabel.textContent = "Прикрепить файл или фото";
+  clearReceiptPreview();
   els.date.value = todayIso();
 }
 
@@ -859,6 +1012,7 @@ async function init() {
   db = await openDb();
   els.date.value = todayIso();
   hydrateSettings();
+  updatePlatformInfo();
   setupReportControls();
   await refresh();
   els.storageStatus.textContent = "На телефоне";
@@ -877,6 +1031,10 @@ async function init() {
 
 els.form.addEventListener("submit", async (event) => {
   event.preventDefault();
+  if (receiptProcessing) {
+    showToast("Подождите, чек еще готовится");
+    return;
+  }
   const expense = collectForm();
   if (!expense.date || !Number.isFinite(expense.amount) || expense.amount <= 0) {
     showToast("Проверьте дату и сумму");
@@ -909,9 +1067,14 @@ els.profileForm.addEventListener("submit", async (event) => {
   switchTab("entry");
 });
 
-els.receipt.addEventListener("change", () => {
+els.receipt.addEventListener("change", async () => {
   const file = els.receipt.files[0];
-  els.receiptLabel.textContent = file ? file.name : "Прикрепить файл или фото";
+  await prepareReceipt(file);
+});
+
+els.receiptPreviewOpen?.addEventListener("click", () => {
+  if (!selectedReceiptPreviewUrl) return;
+  window.open(selectedReceiptPreviewUrl, "_blank", "noopener");
 });
 
 els.tabs.forEach((tab) => {
