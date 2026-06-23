@@ -34,8 +34,6 @@ const els = {
   clearSearch: document.querySelector("#clearSearch"),
   exportExcel: document.querySelector("#exportExcel"),
   exportArchive: document.querySelector("#exportArchive"),
-  exportBackup: document.querySelector("#exportBackup"),
-  importBackup: document.querySelector("#importBackup"),
   reportForm: document.querySelector("#reportForm"),
   reportPeriod: document.querySelector("#reportPeriod"),
   reportCustomRange: document.querySelector("#reportCustomRange"),
@@ -49,7 +47,26 @@ const els = {
   profileForm: document.querySelector("#profileForm"),
   profileDriver: document.querySelector("#profileDriver"),
   profileVehicle: document.querySelector("#profileVehicle"),
-  clearAll: document.querySelector("#clearAll"),
+  driverSummary: document.querySelector("#driverSummary"),
+  openProfile: document.querySelector("#openProfile"),
+  currentTripTitle: document.querySelector("#currentTripTitle"),
+  currentTripMeta: document.querySelector("#currentTripMeta"),
+  startTrip: document.querySelector("#startTrip"),
+  endTrip: document.querySelector("#endTrip"),
+  tripDialog: document.querySelector("#tripDialog"),
+  tripForm: document.querySelector("#tripForm"),
+  closeTripDialog: document.querySelector("#closeTripDialog"),
+  tripNumber: document.querySelector("#tripNumber"),
+  tripFrom: document.querySelector("#tripFrom"),
+  tripTo: document.querySelector("#tripTo"),
+  tripStartStatus: document.querySelector("#tripStartStatus"),
+  placeSuggestions: document.querySelector("#placeSuggestions"),
+  recentPlaces: document.querySelector("#recentPlaces"),
+  correctionBanner: document.querySelector("#correctionBanner"),
+  correctionSourceLabel: document.querySelector("#correctionSourceLabel"),
+  correctionReason: document.querySelector("#correctionReason"),
+  cancelCorrection: document.querySelector("#cancelCorrection"),
+  saveExpenseButton: document.querySelector("#saveExpenseButton"),
   toast: document.querySelector("#toast"),
   storageStatus: document.querySelector("#storageStatus")
 };
@@ -60,6 +77,7 @@ let toastTimer;
 let selectedReceipt = null;
 let selectedReceiptPreviewUrl = "";
 let receiptProcessing = false;
+let correctionSource = null;
 
 const IMAGE_MAX_SIDE = 1900;
 const IMAGE_QUALITY = 0.86;
@@ -102,14 +120,6 @@ async function saveExpense(expense) {
   await requestToPromise(transaction("readwrite").put(expense));
 }
 
-async function deleteExpense(id) {
-  await requestToPromise(transaction("readwrite").delete(id));
-}
-
-async function clearExpenses() {
-  await requestToPromise(transaction("readwrite").clear());
-}
-
 function formatRub(value) {
   return new Intl.NumberFormat("ru-RU", {
     style: "currency",
@@ -121,6 +131,16 @@ function formatRub(value) {
 function formatDate(value) {
   if (!value) return "";
   return new Intl.DateTimeFormat("ru-RU").format(new Date(`${value}T12:00:00`));
+}
+
+function formatDateTime(value) {
+  if (!value) return "";
+  return new Intl.DateTimeFormat("ru-RU", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(new Date(value));
 }
 
 function formatBytes(bytes) {
@@ -287,6 +307,12 @@ async function prepareReceipt(file) {
   }
 }
 
+async function sha256Blob(blob) {
+  if (!blob || !crypto.subtle) return "";
+  const digest = await crypto.subtle.digest("SHA-256", await blob.arrayBuffer());
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
 function getSettings() {
   try {
     return JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {};
@@ -308,11 +334,101 @@ function hydrateSettings() {
   els.vehicle.value = vehicle;
   els.profileDriver.value = driver;
   els.profileVehicle.value = vehicle;
+  els.driverSummary.textContent = [driver, vehicle].filter(Boolean).join(" · ") || "Профиль не заполнен";
+  const activeTrip = getActiveTrip();
+  els.vehicleStatus.value = settings.currentVehicleStatus || activeTrip?.currentStatus || "Стоянка";
+  renderCurrentTrip();
 }
 
-function collectForm() {
-  const file = selectedReceipt || els.receipt.files[0] || null;
+function getActiveTrip() {
+  return getSettings().activeTrip || null;
+}
+
+function setActiveTrip(activeTrip) {
+  setSettings({ activeTrip });
+  renderCurrentTrip();
+}
+
+function renderCurrentTrip() {
+  const trip = getActiveTrip();
+  if (!trip) {
+    els.currentTripTitle.textContent = "Вне рейса";
+    els.currentTripMeta.textContent = "Расход будет записан без привязки к рейсу.";
+    els.startTrip.hidden = false;
+    els.endTrip.hidden = true;
+    return;
+  }
+
+  els.currentTripTitle.textContent = `${trip.from} → ${trip.to}`;
+  const details = [trip.number ? `№ ${trip.number}` : "", trip.startedAt ? `начат ${formatDateTime(trip.startedAt)}` : ""];
+  els.currentTripMeta.textContent = details.filter(Boolean).join(" · ");
+  els.startTrip.hidden = true;
+  els.endTrip.hidden = false;
+}
+
+function tripSnapshot() {
+  const trip = getActiveTrip();
+  if (!trip) return null;
+  return {
+    tripId: trip.id,
+    tripNumber: trip.number || "",
+    tripFrom: trip.from || "",
+    tripTo: trip.to || "",
+    tripStartedAt: trip.startedAt || ""
+  };
+}
+
+function expenseTripLabel(expense) {
+  if (expense.tripFrom || expense.tripTo) {
+    return `${expense.tripFrom || "—"} → ${expense.tripTo || "—"}`;
+  }
+  return "Вне рейса";
+}
+
+function updatePlaceSuggestions() {
+  const values = [];
+  expenses.forEach((expense) => {
+    [expense.route, expense.tripFrom, expense.tripTo].forEach((value) => {
+      const clean = String(value || "").trim();
+      if (clean && !values.includes(clean)) values.push(clean);
+    });
+  });
+
+  els.placeSuggestions.innerHTML = values.slice(0, 30)
+    .map((value) => `<option value="${escapeHtml(value)}"></option>`)
+    .join("");
+
+  const recent = values.slice(0, 4);
+  els.recentPlaces.hidden = recent.length === 0;
+  els.recentPlaces.innerHTML = "";
+  recent.forEach((value) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = value;
+    button.addEventListener("click", () => {
+      els.route.value = value;
+      els.route.focus();
+    });
+    els.recentPlaces.append(button);
+  });
+}
+
+async function collectForm() {
+  const fallbackReceipt = correctionSource?.receiptBlob || null;
+  const file = selectedReceipt || els.receipt.files[0] || fallbackReceipt;
+  const receiptName = selectedReceipt?.name
+    || els.receipt.files[0]?.name
+    || correctionSource?.receiptName
+    || "";
+  const receiptType = file?.type || correctionSource?.receiptType || "";
   const amount = Number(String(els.amount.value).replace(",", "."));
+  const sourceTrip = correctionSource ? {
+    tripId: correctionSource.tripId || "",
+    tripNumber: correctionSource.tripNumber || "",
+    tripFrom: correctionSource.tripFrom || "",
+    tripTo: correctionSource.tripTo || "",
+    tripStartedAt: correctionSource.tripStartedAt || ""
+  } : tripSnapshot();
 
   return {
     id: crypto.randomUUID(),
@@ -326,17 +442,27 @@ function collectForm() {
     payment: els.payment.value,
     supplier: els.supplier.value.trim(),
     note: els.note.value.trim(),
-    receiptName: file ? file.name : "",
-    receiptType: file ? file.type : "",
+    receiptName,
+    receiptType,
     receiptSize: file ? file.size : 0,
     receiptBlob: file,
+    receiptHash: await sha256Blob(file),
+    ...(sourceTrip || {
+      tripId: "",
+      tripNumber: "",
+      tripFrom: "",
+      tripTo: "",
+      tripStartedAt: ""
+    }),
+    correctionOf: correctionSource?.id || "",
+    correctionReason: correctionSource ? els.correctionReason.value.trim() : "",
+    recordType: correctionSource ? "correction" : "original",
     createdAt: new Date().toISOString()
   };
 }
 
 function resetFormAfterSave() {
   els.amount.value = "";
-  els.vehicleStatus.value = "В рейсе";
   els.route.value = "";
   els.supplier.value = "";
   els.note.value = "";
@@ -344,21 +470,84 @@ function resetFormAfterSave() {
   els.receiptLabel.textContent = "Прикрепить файл или фото";
   clearReceiptPreview();
   els.date.value = todayIso();
+  cancelCorrectionMode();
+}
+
+function isSuperseded(expense) {
+  return expenses.some((candidate) => candidate.correctionOf === expense.id);
+}
+
+function effectiveExpenses(source = expenses) {
+  const sourceIds = new Set(source.map((expense) => expense.id));
+  const superseded = new Set(
+    expenses
+      .filter((expense) => expense.correctionOf && sourceIds.has(expense.correctionOf))
+      .map((expense) => expense.correctionOf)
+  );
+  return source.filter((expense) => !superseded.has(expense.id));
+}
+
+function recordStatus(expense) {
+  if (isSuperseded(expense)) return "Исправлена";
+  if (expense.correctionOf) return "Исправление";
+  return "Первоначальная";
+}
+
+function showStoredReceipt(expense) {
+  clearReceiptPreview();
+  if (!expense.receiptBlob) return;
+  selectedReceiptPreviewUrl = URL.createObjectURL(expense.receiptBlob);
+  els.receiptPreviewTitle.textContent = "Исходный чек сохранён";
+  els.receiptPreviewMeta.textContent = `${formatBytes(expense.receiptSize || expense.receiptBlob.size)} · можно прикрепить новый`;
+  const isImage = String(expense.receiptType || "").startsWith("image/");
+  els.receiptPreviewImage.src = isImage ? selectedReceiptPreviewUrl : "";
+  els.receiptPreviewImage.hidden = !isImage;
+  els.receiptPreview.hidden = false;
+}
+
+function startCorrection(expense) {
+  resetFormAfterSave();
+  correctionSource = expense;
+  els.correctionBanner.hidden = false;
+  els.correctionSourceLabel.textContent = `${expense.category} · ${formatRub(expense.amount)} · ${formatDate(expense.date)}`;
+  els.saveExpenseButton.textContent = "Сохранить исправление";
+  els.date.value = expense.date || todayIso();
+  els.amount.value = expense.amount || "";
+  els.driver.value = expense.driver || "";
+  els.vehicle.value = expense.vehicle || "";
+  els.driverSummary.textContent = [expense.driver, expense.vehicle].filter(Boolean).join(" · ") || "Профиль не заполнен";
+  els.vehicleStatus.value = statusOf(expense);
+  els.route.value = expense.route || "";
+  els.category.value = expense.category || els.category.value;
+  els.payment.value = expense.payment || els.payment.value;
+  els.supplier.value = expense.supplier || "";
+  els.note.value = expense.note || "";
+  showStoredReceipt(expense);
+  switchTab("entry");
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function cancelCorrectionMode() {
+  correctionSource = null;
+  els.correctionBanner.hidden = true;
+  els.correctionReason.value = "";
+  els.saveExpenseButton.textContent = "Сохранить расход";
 }
 
 function updateSummary() {
   const today = todayIso();
   const month = monthKey(today);
-  const todayTotal = expenses
+  const currentExpenses = effectiveExpenses();
+  const todayTotal = currentExpenses
     .filter((expense) => expense.date === today)
     .reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
-  const monthTotal = expenses
+  const monthTotal = currentExpenses
     .filter((expense) => monthKey(expense.date || "") === month)
     .reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
 
   els.todayTotal.textContent = formatRub(todayTotal);
   els.monthTotal.textContent = formatRub(monthTotal);
-  els.entryCount.textContent = String(expenses.length);
+  els.entryCount.textContent = String(currentExpenses.length);
 }
 
 function matchesSearch(expense, query) {
@@ -369,11 +558,16 @@ function matchesSearch(expense, query) {
     expense.vehicle,
     statusOf(expense),
     expense.route,
+    expense.tripNumber,
+    expense.tripFrom,
+    expense.tripTo,
     expense.category,
     expense.payment,
     expense.supplier,
     expense.note,
-    expense.receiptName
+    expense.receiptName,
+    expense.correctionReason,
+    recordStatus(expense)
   ].join(" ").toLowerCase();
   return haystack.includes(query.toLowerCase());
 }
@@ -396,7 +590,8 @@ function renderExpenses() {
   const fragment = document.createDocumentFragment();
   rows.forEach((expense) => {
     const card = document.createElement("article");
-    card.className = "expense-card";
+    const status = recordStatus(expense);
+    card.className = `expense-card ${status === "Исправлена" ? "superseded" : ""}`;
     card.innerHTML = `
       <div class="expense-card-main">
         <div class="expense-title">
@@ -406,27 +601,24 @@ function renderExpenses() {
         <div class="expense-amount">${escapeHtml(formatRub(expense.amount))}</div>
       </div>
       <div class="tag-row">
-        ${tag(expense.route || "Без рейса")}
+        ${tag(status, status === "Исправлена" ? "muted" : status === "Исправление" ? "accent" : "")}
+        ${tag(expenseTripLabel(expense))}
         ${tag(statusOf(expense))}
+        ${expense.route ? tag(expense.route) : ""}
         ${tag(expense.driver || "Водитель не указан")}
         ${tag(expense.vehicle || "Машина не указана")}
         ${tag(expense.payment)}
       </div>
+      ${expense.correctionReason ? `<div class="correction-note"><strong>Причина:</strong> ${escapeHtml(expense.correctionReason)}</div>` : ""}
       <div class="meta-line">${escapeHtml([expense.supplier, expense.note].filter(Boolean).join(" · "))}</div>
       <div class="card-actions">
         ${expense.receiptBlob ? '<button type="button" data-action="receipt">Скачать чек</button>' : ""}
-        <button class="delete-button" type="button" data-action="delete">Удалить</button>
+        ${!isSuperseded(expense) ? '<button type="button" data-action="correct">Исправить</button>' : ""}
       </div>
     `;
 
     card.querySelector('[data-action="receipt"]')?.addEventListener("click", () => downloadReceipt(expense));
-    card.querySelector('[data-action="delete"]').addEventListener("click", async () => {
-      const ok = confirm("Удалить расход?");
-      if (!ok) return;
-      await deleteExpense(expense.id);
-      await refresh();
-      showToast("Расход удален");
-    });
+    card.querySelector('[data-action="correct"]')?.addEventListener("click", () => startCorrection(expense));
 
     fragment.append(card);
   });
@@ -434,8 +626,8 @@ function renderExpenses() {
   els.list.append(fragment);
 }
 
-function tag(value) {
-  return `<span class="tag">${escapeHtml(value)}</span>`;
+function tag(value, variant = "") {
+  return `<span class="tag ${variant ? `tag-${variant}` : ""}">${escapeHtml(value)}</span>`;
 }
 
 function escapeHtml(value) {
@@ -451,6 +643,7 @@ async function refresh() {
   expenses = await getAllExpenses();
   updateSummary();
   renderExpenses();
+  updatePlaceSuggestions();
   updateReportSummary();
 }
 
@@ -483,17 +676,26 @@ function rowsForExport(source = expenses) {
     .sort((a, b) => `${a.date}T${a.createdAt}`.localeCompare(`${b.date}T${b.createdAt}`))
     .map((expense, index) => ({
       "№": index + 1,
+      "ID записи": expense.id || "",
+      "Версия записи": recordStatus(expense),
+      "Исправляет ID": expense.correctionOf || "",
+      "Причина исправления": expense.correctionReason || "",
+      "Учитывать в итогах": isSuperseded(expense) ? "Нет" : "Да",
       "Дата": expense.date || "",
       "Водитель": expense.driver || "",
       "Машина": expense.vehicle || "",
+      "Номер рейса": expense.tripNumber || "",
+      "Откуда": expense.tripFrom || "",
+      "Куда": expense.tripTo || "",
       "Статус машины": statusOf(expense),
-      "Рейс / место": expense.route || "",
+      "Место расхода": expense.route || "",
       "Категория": expense.category || "",
       "Сумма, ₽": Number(expense.amount || 0),
       "Оплата": expense.payment || "",
       "Кому оплачено": expense.supplier || "",
       "Комментарий": expense.note || "",
       "Чек": expense.receiptName || "",
+      "SHA-256 чека": expense.receiptHash || "",
       "Создано": expense.createdAt || ""
     }));
 }
@@ -502,17 +704,26 @@ async function buildWorkbookBlob(source = expenses) {
   const rows = rowsForExport(source);
   const headers = Object.keys(rows[0] || {
     "№": "",
+    "ID записи": "",
+    "Версия записи": "",
+    "Исправляет ID": "",
+    "Причина исправления": "",
+    "Учитывать в итогах": "",
     "Дата": "",
     "Водитель": "",
     "Машина": "",
+    "Номер рейса": "",
+    "Откуда": "",
+    "Куда": "",
     "Статус машины": "",
-    "Рейс / место": "",
+    "Место расхода": "",
     "Категория": "",
     "Сумма, ₽": "",
     "Оплата": "",
     "Кому оплачено": "",
     "Комментарий": "",
     "Чек": "",
+    "SHA-256 чека": "",
     "Создано": ""
   });
 
@@ -563,9 +774,9 @@ function worksheetXml(rows) {
   <cols>
     <col min="1" max="1" width="6" customWidth="1"/>
     <col min="2" max="2" width="13" customWidth="1"/>
-    <col min="3" max="7" width="22" customWidth="1"/>
-    <col min="8" max="8" width="14" customWidth="1"/>
-    <col min="9" max="13" width="24" customWidth="1"/>
+    <col min="3" max="10" width="22" customWidth="1"/>
+    <col min="11" max="11" width="14" customWidth="1"/>
+    <col min="12" max="22" width="24" customWidth="1"/>
   </cols>
   <sheetData>${body}</sheetData>
 </worksheet>`;
@@ -662,7 +873,7 @@ async function buildArchiveBlob(source = expenses) {
   const workbookBytes = new Uint8Array(await workbook.arrayBuffer());
   const files = {
     "expenses.xlsx": workbookBytes,
-    "expenses.json": encoder.encode(JSON.stringify(await serializableExpenses(false, source), null, 2))
+    "expenses.json": encoder.encode(JSON.stringify(await serializableExpenses(source), null, 2))
   };
 
   for (const expense of source) {
@@ -729,10 +940,12 @@ function updateReportSummary() {
   const custom = els.reportPeriod.value === "custom";
   els.reportCustomRange.hidden = !custom;
   const { range, rows } = reportExpenses();
-  const total = rows.reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
+  const currentRows = effectiveExpenses(rows);
+  const total = currentRows.reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
   const receipts = rows.filter((expense) => expense.receiptBlob).length;
+  const corrections = rows.filter((expense) => expense.correctionOf).length;
   els.reportSummary.textContent = rows.length
-    ? `${range.label}: ${formatDate(range.from)} - ${formatDate(range.to)} · ${rows.length} записей · ${formatRub(total)} · чеков: ${receipts}`
+    ? `${range.label}: ${formatDate(range.from)} - ${formatDate(range.to)} · действующих: ${currentRows.length} · ${formatRub(total)} · чеков: ${receipts}${corrections ? ` · исправлений: ${corrections}` : ""}`
     : `${range.label}: за выбранный период расходов нет`;
 }
 
@@ -820,70 +1033,12 @@ function extensionFromName(name) {
   return match ? match[0] : "";
 }
 
-async function serializableExpenses(includeReceipts, source = expenses) {
-  const rows = [];
-  for (const expense of source) {
+async function serializableExpenses(source = expenses) {
+  return source.map((expense) => {
     const copy = { ...expense };
     delete copy.receiptBlob;
-    if (includeReceipts && expense.receiptBlob) {
-      copy.receiptDataUrl = await blobToDataUrl(expense.receiptBlob);
-    }
-    rows.push(copy);
-  }
-  return rows;
-}
-
-async function exportBackup() {
-  const data = {
-    app: "driver-expenses",
-    version: 1,
-    exportedAt: new Date().toISOString(),
-    settings: getSettings(),
-    expenses: await serializableExpenses(true)
-  };
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-  downloadBlob(blob, `rezerv-rashody-${todayIso()}.json`);
-  showToast("Резервная копия скачана");
-}
-
-function blobToDataUrl(blob) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = () => reject(reader.error);
-    reader.readAsDataURL(blob);
+    return copy;
   });
-}
-
-function dataUrlToBlob(dataUrl) {
-  const [meta, content] = dataUrl.split(",");
-  const mime = meta.match(/data:(.*?);base64/)?.[1] || "application/octet-stream";
-  const binary = atob(content);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
-  return new Blob([bytes], { type: mime });
-}
-
-async function importBackupFile(file) {
-  const text = await file.text();
-  const data = JSON.parse(text);
-  if (data.app !== "driver-expenses" || !Array.isArray(data.expenses)) {
-    throw new Error("Неверный файл резервной копии");
-  }
-
-  if (!confirm("Заменить текущий журнал данными из копии?")) return;
-
-  await clearExpenses();
-  localStorage.setItem(SETTINGS_KEY, JSON.stringify(data.settings || {}));
-  for (const expense of data.expenses) {
-    const copy = { ...expense };
-    copy.receiptBlob = copy.receiptDataUrl ? dataUrlToBlob(copy.receiptDataUrl) : null;
-    delete copy.receiptDataUrl;
-    await saveExpense(copy);
-  }
-  hydrateSettings();
-  await refresh();
-  showToast("Резервная копия загружена");
 }
 
 function zipBlob(files, type) {
@@ -1035,20 +1190,32 @@ els.form.addEventListener("submit", async (event) => {
     showToast("Подождите, чек еще готовится");
     return;
   }
-  const expense = collectForm();
+  if (correctionSource && !els.correctionReason.value.trim()) {
+    showToast("Укажите причину исправления");
+    els.correctionReason.focus();
+    return;
+  }
+  const wasCorrection = Boolean(correctionSource);
+  const expense = await collectForm();
   if (!expense.date || !Number.isFinite(expense.amount) || expense.amount <= 0) {
     showToast("Проверьте дату и сумму");
     return;
   }
   setSettings({
     driver: expense.driver,
-    vehicle: expense.vehicle
+    vehicle: expense.vehicle,
+    currentVehicleStatus: wasCorrection ? getSettings().currentVehicleStatus : expense.vehicleStatus
   });
+  if (!wasCorrection) {
+    const activeTrip = getActiveTrip();
+    if (activeTrip) setActiveTrip({ ...activeTrip, currentStatus: expense.vehicleStatus });
+  }
   await saveExpense(expense);
   resetFormAfterSave();
+  hydrateSettings();
   await refresh();
   switchTab("journal");
-  showToast("Расход сохранен");
+  showToast(wasCorrection ? "Исправление сохранено" : "Расход сохранен");
 });
 
 els.profileForm.addEventListener("submit", async (event) => {
@@ -1063,6 +1230,7 @@ els.profileForm.addEventListener("submit", async (event) => {
   });
   els.driver.value = profileDriver;
   els.vehicle.value = profileVehicle;
+  els.driverSummary.textContent = [profileDriver, profileVehicle].filter(Boolean).join(" · ") || "Профиль не заполнен";
   showToast("Профиль сохранен");
   switchTab("entry");
 });
@@ -1077,6 +1245,65 @@ els.receiptPreviewOpen?.addEventListener("click", () => {
   window.open(selectedReceiptPreviewUrl, "_blank", "noopener");
 });
 
+els.openProfile.addEventListener("click", () => switchTab("profile"));
+
+els.cancelCorrection.addEventListener("click", () => {
+  resetFormAfterSave();
+  hydrateSettings();
+  showToast("Исправление отменено");
+});
+
+els.vehicleStatus.addEventListener("change", () => {
+  if (correctionSource) return;
+  const status = els.vehicleStatus.value;
+  setSettings({ currentVehicleStatus: status });
+  const activeTrip = getActiveTrip();
+  if (activeTrip) setActiveTrip({ ...activeTrip, currentStatus: status });
+});
+
+els.startTrip.addEventListener("click", () => {
+  els.tripForm.reset();
+  els.tripStartStatus.value = "Ожидание загрузки";
+  if (typeof els.tripDialog.showModal === "function") els.tripDialog.showModal();
+  else els.tripDialog.setAttribute("open", "");
+});
+
+els.closeTripDialog.addEventListener("click", () => els.tripDialog.close());
+
+els.tripForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const from = els.tripFrom.value.trim();
+  const to = els.tripTo.value.trim();
+  if (!from || !to) {
+    showToast("Укажите откуда и куда едем");
+    return;
+  }
+  const status = els.tripStartStatus.value;
+  const trip = {
+    id: crypto.randomUUID(),
+    number: els.tripNumber.value.trim(),
+    from,
+    to,
+    startedAt: new Date().toISOString(),
+    currentStatus: status
+  };
+  setSettings({ activeTrip: trip, currentVehicleStatus: status });
+  els.vehicleStatus.value = status;
+  renderCurrentTrip();
+  els.tripDialog.close();
+  showToast("Рейс начат");
+});
+
+els.endTrip.addEventListener("click", () => {
+  const trip = getActiveTrip();
+  if (!trip) return;
+  if (!confirm(`Завершить рейс ${trip.from} → ${trip.to}?`)) return;
+  setSettings({ activeTrip: null, currentVehicleStatus: "Стоянка" });
+  els.vehicleStatus.value = "Стоянка";
+  renderCurrentTrip();
+  showToast("Рейс завершён, машина на стоянке");
+});
+
 els.tabs.forEach((tab) => {
   tab.addEventListener("click", () => switchTab(tab.dataset.tab));
 });
@@ -1089,7 +1316,6 @@ els.clearSearch.addEventListener("click", () => {
 
 els.exportExcel.addEventListener("click", exportExcel);
 els.exportArchive.addEventListener("click", exportArchive);
-els.exportBackup.addEventListener("click", exportBackup);
 
 els.reportForm?.addEventListener("submit", (event) => event.preventDefault());
 els.reportPeriod?.addEventListener("change", updateReportSummary);
@@ -1102,27 +1328,6 @@ els.shareReport?.addEventListener("click", () => {
 });
 els.downloadReport?.addEventListener("click", () => {
   downloadReport().catch((error) => showToast(error.message || "Не удалось скачать отчет"));
-});
-
-els.importBackup.addEventListener("change", async () => {
-  const file = els.importBackup.files[0];
-  if (!file) return;
-  try {
-    await importBackupFile(file);
-  } catch (error) {
-    showToast(error.message || "Не удалось загрузить копию");
-  } finally {
-    els.importBackup.value = "";
-  }
-});
-
-els.clearAll.addEventListener("click", async () => {
-  if (!expenses.length) return;
-  const ok = confirm("Удалить все записи?");
-  if (!ok) return;
-  await clearExpenses();
-  await refresh();
-  showToast("Журнал очищен");
 });
 
 init().catch((error) => {

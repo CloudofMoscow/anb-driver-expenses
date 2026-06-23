@@ -8,10 +8,10 @@
     <meta name="apple-mobile-web-app-title" content="Расходы">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Расходы водителя</title>
-    <link rel="manifest" href="./manifest.webmanifest?v=12">
+    <link rel="manifest" href="./manifest.webmanifest?v=13">
     <link rel="icon" href="./icon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="./apple-touch-icon.png">
-    <link rel="stylesheet" href="./styles.css?v=12">
+    <link rel="stylesheet" href="./styles.css?v=13">
   </head>
   <body>
     <div class="app-shell">
@@ -47,12 +47,55 @@
         <nav class="tabs" aria-label="Разделы">
           <button class="tab-button active" type="button" data-tab="entry">Новый</button>
           <button class="tab-button" type="button" data-tab="journal">Журнал</button>
-          <button class="tab-button" type="button" data-tab="profile">Профиль</button>
           <button class="tab-button" type="button" data-tab="export">Отчет</button>
+          <button class="tab-button" type="button" data-tab="profile">Профиль</button>
         </nav>
 
         <section class="tab-panel active" id="entryPanel" data-panel="entry">
+          <section class="trip-context" aria-label="Текущий рейс">
+            <div class="trip-context-copy">
+              <p class="section-kicker">Текущий рейс</p>
+              <h2 id="currentTripTitle">Вне рейса</h2>
+              <p id="currentTripMeta">Расход будет записан без привязки к рейсу.</p>
+            </div>
+            <div class="trip-context-controls">
+              <label>
+                <span>Машина сейчас</span>
+                <select id="vehicleStatus" name="vehicleStatus">
+                  <option>Стоянка</option>
+                  <option>Ожидание загрузки</option>
+                  <option>В рейсе</option>
+                  <option>Ожидание выгрузки</option>
+                </select>
+              </label>
+              <button class="primary-action" id="startTrip" type="button">Начать рейс</button>
+              <button class="secondary-action" id="endTrip" type="button" hidden>Завершить рейс</button>
+            </div>
+          </section>
+
           <form class="expense-form" id="expenseForm" autocomplete="on">
+            <div class="correction-banner" id="correctionBanner" hidden>
+              <div>
+                <span>Исправление сохранённой записи</span>
+                <strong id="correctionSourceLabel"></strong>
+              </div>
+              <label>
+                <span>Причина исправления</span>
+                <textarea id="correctionReason" rows="2" placeholder="Что именно было указано неверно"></textarea>
+              </label>
+              <button class="ghost-action" id="cancelCorrection" type="button">Отменить исправление</button>
+            </div>
+
+            <div class="driver-strip">
+              <div>
+                <span>Водитель и машина</span>
+                <strong id="driverSummary">Профиль не заполнен</strong>
+              </div>
+              <button class="ghost-action compact-action" id="openProfile" type="button">Изменить</button>
+            </div>
+            <input id="driver" name="driver" type="hidden">
+            <input id="vehicle" name="vehicle" type="hidden">
+
             <div class="field-row two">
               <label>
                 <span>Дата</span>
@@ -64,32 +107,13 @@
               </label>
             </div>
 
-            <div class="field-row two">
-              <label>
-                <span>Водитель</span>
-                <input id="driver" name="driver" type="text" placeholder="ФИО">
-              </label>
-              <label>
-                <span>Машина</span>
-                <input id="vehicle" name="vehicle" type="text" placeholder="Номер">
-              </label>
-            </div>
-
-            <div class="field-row two">
-              <label>
-                <span>Статус машины</span>
-                <select id="vehicleStatus" name="vehicleStatus">
-                  <option>В рейсе</option>
-                  <option>Стоянка</option>
-                  <option>Ожидание загрузки</option>
-                  <option>Ожидание выгрузки</option>
-                </select>
-              </label>
-              <label>
-                <span>Рейс / место</span>
-                <input id="route" name="route" type="text" placeholder="Москва - Казань, стоянка или склад">
-              </label>
-            </div>
+            <label>
+              <span>Место расхода</span>
+              <input id="route" name="route" type="text" list="placeSuggestions" placeholder="АЗС, стоянка, склад или город">
+              <small class="field-hint" id="placeHint">Начните вводить — приложение предложит недавние места.</small>
+            </label>
+            <datalist id="placeSuggestions"></datalist>
+            <div class="recent-places" id="recentPlaces" hidden></div>
 
             <div class="field-row two">
               <label>
@@ -144,7 +168,7 @@
               <textarea id="note" name="note" rows="3" placeholder="Коротко по расходу"></textarea>
             </label>
 
-            <button class="primary-action" type="submit">Сохранить расход</button>
+            <button class="primary-action save-expense" id="saveExpenseButton" type="submit">Сохранить расход</button>
           </form>
         </section>
 
@@ -233,19 +257,49 @@
               <button class="secondary-action" id="downloadReport" type="button">Скачать ZIP</button>
               <button class="secondary-action" id="exportExcel" type="button">Только Excel</button>
               <button class="secondary-action" id="exportArchive" type="button">Все чеки</button>
-              <button class="secondary-action" id="exportBackup" type="button">Резервная копия</button>
-              <label class="import-button">
-                <span>Загрузить копию</span>
-                <input id="importBackup" type="file" accept="application/json">
-              </label>
-              <button class="ghost-action danger" id="clearAll" type="button">Очистить журнал</button>
             </div>
           </details>
         </section>
       </main>
     </div>
 
+    <dialog class="trip-dialog" id="tripDialog">
+      <form class="trip-form" id="tripForm">
+        <div class="dialog-heading">
+          <div>
+            <p class="section-kicker">Новый рейс</p>
+            <h2>Куда едем</h2>
+          </div>
+          <button class="dialog-close" id="closeTripDialog" type="button" aria-label="Закрыть">×</button>
+        </div>
+        <label>
+          <span>Номер рейса или заявки</span>
+          <input id="tripNumber" type="text" placeholder="Необязательно">
+        </label>
+        <div class="field-row two">
+          <label>
+            <span>Откуда</span>
+            <input id="tripFrom" type="text" list="placeSuggestions" placeholder="Город или склад" required>
+          </label>
+          <label>
+            <span>Куда</span>
+            <input id="tripTo" type="text" list="placeSuggestions" placeholder="Город или склад" required>
+          </label>
+        </div>
+        <label>
+          <span>Начальное состояние</span>
+          <select id="tripStartStatus">
+            <option>Ожидание загрузки</option>
+            <option>В рейсе</option>
+            <option>Стоянка</option>
+            <option>Ожидание выгрузки</option>
+          </select>
+        </label>
+        <button class="primary-action" type="submit">Начать рейс</button>
+      </form>
+    </dialog>
+
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="./app.js?v=12" type="module"></script>
+    <script src="./app.js?v=13" type="module"></script>
   </body>
 </html>

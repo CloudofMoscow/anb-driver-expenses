@@ -1,12 +1,12 @@
-const CACHE_NAME = "driver-expenses-v16";
+const CACHE_NAME = "driver-expenses-v17";
 const ASSETS = [
   "./index.html",
-  "./styles.css?v=12",
-  "./app.js?v=12",
-  "./manifest.webmanifest?v=12",
-  "./icon.svg?v=12",
-  "./icon-192.png?v=12",
-  "./icon-512.png?v=12",
+  "./styles.css?v=13",
+  "./app.js?v=13",
+  "./manifest.webmanifest?v=13",
+  "./icon.svg?v=13",
+  "./icon-192.png?v=13",
+  "./icon-512.png?v=13",
   "./apple-touch-icon.png",
   "./anb-logo.svg"
 ];
