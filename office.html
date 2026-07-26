@@ -1,0 +1,704 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#ffffff">
+    <title>Кабинет офиса · ANB</title>
+    <link rel="manifest" href="./manifest.webmanifest?v=55">
+    <link rel="icon" href="./icon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="./apple-touch-icon.png">
+    <link rel="stylesheet" href="./styles.css?v=55">
+  </head>
+  <body class="office-page">
+    <div class="app-shell office-shell portal-shell">
+      <header class="topbar office-sidebar">
+        <div class="brand">
+          <span class="brand-mark"><img src="./anb-logo.svg" alt="ANB Group"></span>
+          <div>
+            <h1 id="officeName">ANB Group</h1>
+            <p class="office-role-label">Кабинет офиса</p>
+          </div>
+        </div>
+        <nav class="tabs office-tabs" aria-label="Разделы" role="tablist">
+          <button class="tab-button active" id="officeTabOverview" type="button" role="tab" aria-controls="officePanelOverview" aria-selected="true" tabindex="0" data-office-tab="overview">Обзор</button>
+          <button class="tab-button" id="officeTabTrips" type="button" role="tab" aria-controls="officePanelTrips" aria-selected="false" tabindex="-1" data-office-tab="dashboard">Рейсы</button>
+          <button class="tab-button" id="officeTabDrivers" type="button" role="tab" aria-controls="officePanelDrivers" aria-selected="false" tabindex="-1" data-office-tab="settlements">Водители</button>
+          <button class="tab-button" id="officeTabFleet" type="button" role="tab" aria-controls="officePanelFleet" aria-selected="false" tabindex="-1" data-office-tab="fleet">Автопарк</button>
+          <button class="tab-button" id="officeTabAnalytics" type="button" role="tab" aria-controls="officePanelAnalytics" aria-selected="false" tabindex="-1" data-office-tab="analytics">Доходность</button>
+          <button class="tab-button" id="officeTabCustomers" type="button" role="tab" aria-controls="officePanelCustomers" aria-selected="false" tabindex="-1" data-office-tab="customers">Заказчики</button>
+          <button class="tab-button" id="officeTabSettings" type="button" role="tab" aria-controls="officePanelSettings" aria-selected="false" tabindex="-1" data-office-tab="settings">Настройки</button>
+        </nav>
+        <div class="header-actions">
+          <span class="status-pill">Данные защищены</span>
+          <details class="office-account-menu account-menu">
+            <summary>Аккаунт</summary>
+            <div>
+              <button class="header-button push-button" id="pushNotificationsButton" type="button" hidden>Включить уведомления</button>
+              <button class="header-button" id="changePasswordButton" type="button">Сменить пароль</button>
+              <button class="header-button" id="logoutButton" type="button">Выйти</button>
+            </div>
+          </details>
+        </div>
+      </header>
+
+      <main class="office-main">
+        <header class="office-content-topbar">
+          <p id="officeCurrentDate">Сегодня</p>
+          <div class="office-topbar-actions">
+            <button class="office-notification-shortcut" id="officeNotificationShortcut" type="button" aria-label="Открыть уведомления">Уведомления</button>
+            <button class="primary-action create-trip-shortcut" id="createTripShortcut" type="button">Создать рейс</button>
+          </div>
+        </header>
+
+        <section class="tab-panel active office-overview" id="officePanelOverview" role="tabpanel" aria-labelledby="officeTabOverview" data-office-panel="overview">
+          <div class="overview-heading">
+            <h2>Что требует внимания сегодня?</h2>
+            <p>Коротко о главном по автопарку и деньгам.</p>
+          </div>
+
+          <section class="summary-grid office-summary" aria-label="Финансовая сводка">
+            <div class="summary-item summary-result">
+              <span>Валовая прибыль рейсов</span>
+              <strong id="totalResult">0 ₽</strong>
+              <small id="totalResultNote">Без постоянных и разовых расходов</small>
+            </div>
+            <div class="summary-item summary-receivable">
+              <span>Нам должны</span>
+              <strong id="totalReceivable">0 ₽</strong>
+              <small id="totalReceivableNote">По выполненным заказам</small>
+            </div>
+            <div class="summary-item summary-review">
+              <span>Расходы на проверке</span>
+              <strong id="pendingExpenseTotal">0 ₽</strong>
+              <small id="pendingExpenseNote">Нет новых документов</small>
+            </div>
+            <div class="summary-item summary-active">
+              <span>Активные рейсы</span>
+              <strong id="activeTripCount">0</strong>
+              <small id="activeTripNote">Нет машин в пути</small>
+            </div>
+          </section>
+
+          <section class="overview-card overview-active-trips" aria-labelledby="overviewTripsTitle">
+            <div class="overview-card-heading">
+              <h2 id="overviewTripsTitle">Активные рейсы</h2>
+              <button class="text-action" id="openAllTripsButton" type="button">Смотреть все рейсы</button>
+            </div>
+            <div id="overviewTripList" class="overview-trip-list"></div>
+            <p class="empty-state" id="noOverviewTrips">Активных рейсов сейчас нет.</p>
+          </section>
+
+          <div class="overview-lower-grid">
+            <section class="overview-card" aria-labelledby="overviewAttentionTitle">
+              <div class="overview-card-heading">
+                <h2 id="overviewAttentionTitle">Что требует внимания</h2>
+              </div>
+              <div id="overviewAttentionList" class="attention-list"></div>
+            </section>
+            <section class="overview-card quick-action-card" aria-labelledby="quickActionTitle">
+              <div>
+                <h2 id="quickActionTitle">Быстрое действие</h2>
+                <p>Запишите выплату водителю и сразу укажите её назначение.</p>
+              </div>
+              <button class="secondary-action transfer-shortcut" id="overviewTransferButton" type="button">Записать перевод</button>
+              <p class="security-note">Финансовые записи сохраняются с историей изменений.</p>
+            </section>
+          </div>
+
+          <section class="driver-notification-section office-notification-section" id="officeNotificationSection" hidden>
+            <div class="portal-section-heading">
+              <div>
+                <p class="section-kicker">События водителей</p>
+                <h2>Уведомления офиса</h2>
+              </div>
+              <span class="status-badge" id="officeNotificationCount">0 новых</span>
+            </div>
+            <div id="officeNotificationList" class="portal-list"></div>
+          </section>
+        </section>
+
+        <section class="tab-panel" id="officePanelTrips" role="tabpanel" aria-labelledby="officeTabTrips" data-office-panel="dashboard">
+          <div class="portal-section-heading">
+            <div>
+              <p class="section-kicker">Финансовый контроль</p>
+              <h2>Рейсы</h2>
+            </div>
+            <label class="inline-filter-label">
+              <span>Статус рейса</span>
+              <select id="tripStatusFilter" class="inline-filter">
+                <option value="">Все статусы</option>
+                <option value="assigned">Назначенные</option>
+                <option value="awaiting_loading">Ожидают погрузки</option>
+                <option value="in_progress">Выполняются</option>
+                <option value="pending_review">Ожидают проверки</option>
+                <option value="needs_explanation">Требуют пояснения</option>
+                <option value="confirmed">Подтверждённые</option>
+                <option value="closed">Закрытые</option>
+              </select>
+            </label>
+          </div>
+          <section class="trip-detail-view" id="officeTripDetail" aria-live="polite" hidden>
+            <button class="back-link" id="closeTripDetailButton" type="button">← Ко всем рейсам</button>
+            <div id="officeTripDetailContent"></div>
+          </section>
+          <div id="officeTripList" class="portal-list"></div>
+          <div class="empty-state empty-state-action" id="noOfficeTrips">
+            <p>Рейсов пока нет. Создайте первый рейс и назначьте водителя.</p>
+            <button type="button" data-empty-action="new-trip">Создать рейс</button>
+          </div>
+
+          <section id="pendingExpenseQueue">
+            <div class="portal-section-heading section-spacer">
+              <div>
+                <p class="section-kicker">Требуют внимания</p>
+                <h2>Расходы водителей</h2>
+              </div>
+            </div>
+            <div id="pendingExpenseList" class="expense-list"></div>
+            <p class="empty-state" id="noPendingExpenses">Новых расходов для проверки нет.</p>
+          </section>
+        </section>
+
+        <section class="tab-panel" id="officePanelAnalytics" role="tabpanel" aria-labelledby="officeTabAnalytics" data-office-panel="analytics">
+          <form class="portal-form form-card report-filter-card" id="reportForm">
+            <div class="profile-heading">
+              <h2>Доходность сцепок за период</h2>
+              <p>Выручка считается по завершённым рейсам, отдельно от фактических оплат заказчиков. Постоянные расходы вычитаются за выбранный период.</p>
+            </div>
+            <div class="field-row three">
+              <label><span>С даты</span><input id="reportFrom" type="date" required></label>
+              <label><span>По дату</span><input id="reportTo" type="date" required></label>
+              <label><span>Сцепка</span><select id="reportRig"><option value="">Все сцепки</option></select></label>
+            </div>
+            <button class="primary-action" id="buildReportButton" type="submit">Рассчитать</button>
+          </form>
+
+          <section class="summary-grid office-summary report-summary" id="reportSummary" aria-label="Результат за период">
+            <div class="summary-item"><span>Выручка</span><strong id="reportRevenue">0 ₽</strong></div>
+            <div class="summary-item"><span>Расходы рейсов</span><strong id="reportTripExpenses">0 ₽</strong></div>
+            <div class="summary-item"><span>Начислено водителям</span><strong id="reportDriverCompensation">0 ₽</strong></div>
+            <div class="summary-item"><span>Постоянные расходы</span><strong id="reportFixedCosts">0 ₽</strong></div>
+            <div class="summary-item"><span>Разовые расходы</span><strong id="reportOneOffExpenses">0 ₽</strong></div>
+            <div class="summary-item"><span>Итог</span><strong id="reportProfit">0 ₽</strong></div>
+          </section>
+          <p class="field-hint report-note" id="reportNote">Выберите период и нажмите «Рассчитать».</p>
+          <div id="reportCostBreakdown" class="cost-breakdown-grid"></div>
+          <div id="reportRigList" class="portal-list"></div>
+
+          <div class="portal-section-heading section-spacer">
+            <div>
+              <p class="section-kicker">Не привязано к чекам водителя</p>
+              <h2>Разовые расходы бизнеса</h2>
+              <p>Шины, госпошлины, офисные покупки и другие затраты. Ошибочные записи отменяются с причиной и остаются в истории.</p>
+            </div>
+          </div>
+          <div class="setup-grid analytics-expense-grid">
+            <form class="portal-form form-card" id="companyExpenseForm">
+              <label>
+                <span>К чему относится</span>
+                <select id="companyExpenseScope" required>
+                  <option value="company">К компании в целом</option>
+                  <option value="rig">К конкретной сцепке</option>
+                </select>
+              </label>
+              <label id="companyExpenseRigLabel" hidden><span>Сцепка</span><select id="companyExpenseRig"></select></label>
+              <label>
+                <span>Категория</span>
+                <input id="companyExpenseCategory" list="companyExpenseCategories" required placeholder="Например, шины">
+                <datalist id="companyExpenseCategories">
+                  <option value="Шины"></option>
+                  <option value="Запчасти"></option>
+                  <option value="Ремонт"></option>
+                  <option value="Госпошлины"></option>
+                  <option value="Связь"></option>
+                  <option value="Офис"></option>
+                  <option value="Налоги и сборы"></option>
+                  <option value="Прочее"></option>
+                </datalist>
+              </label>
+              <div class="field-row two">
+                <label><span>Сумма, ₽</span><input id="companyExpenseAmount" inputmode="decimal" required placeholder="25000"></label>
+                <label>
+                  <span>Способ оплаты</span>
+                  <select id="companyExpensePaymentMethod" required>
+                    <option value="bank">Расчётный счёт</option>
+                    <option value="company_card">Корпоративная карта</option>
+                    <option value="cash">Наличные</option>
+                    <option value="card_transfer">Перевод на карту</option>
+                  </select>
+                </label>
+              </div>
+              <label><span>Дата и время</span><input id="companyExpenseOccurredAt" type="datetime-local" required></label>
+              <label><span>Комментарий</span><textarea id="companyExpenseDescription" rows="3" maxlength="2000" required placeholder="Что куплено или за что оплачено"></textarea></label>
+              <label><span>Чек или документ (если есть)</span><input id="companyExpenseProof" type="file" accept="image/*,application/pdf,.doc,.docx"></label>
+              <button class="primary-action" id="saveCompanyExpenseButton" type="submit">Записать расход</button>
+            </form>
+
+            <section class="form-card company-expense-history" aria-labelledby="companyExpenseHistoryTitle">
+              <div class="profile-heading">
+                <h2 id="companyExpenseHistoryTitle">История расходов</h2>
+                <p>Сторнированные записи видны, но больше не уменьшают прибыль.</p>
+              </div>
+              <div id="companyExpenseList" class="portal-list"></div>
+              <p class="empty-state" id="noCompanyExpenses">Разовых расходов пока нет.</p>
+            </section>
+          </div>
+        </section>
+
+        <section class="tab-panel" id="officePanelDrivers" role="tabpanel" aria-labelledby="officeTabDrivers" data-office-panel="settlements">
+          <div class="portal-section-heading">
+            <div>
+              <p class="section-kicker">Начисления отдельно от денег</p>
+              <h2>Взаиморасчёты с водителями</h2>
+              <p>Положительный баланс означает долг компании водителю. Аванс остаётся деньгами водителя до подтверждения расхода или возврата.</p>
+            </div>
+          </div>
+
+          <div class="setup-grid settlement-forms">
+            <form class="portal-form form-card" id="companyCompensationForm">
+              <h2>Общие ставки</h2>
+              <label><span>Зарплата за километр, ₽</span><input id="companySalaryRate" inputmode="decimal" required></label>
+              <label><span>Суточные за календарный день, ₽</span><input id="companyDailyRate" inputmode="decimal" required></label>
+              <label><span>Причина изменения</span><textarea id="companyRateReason" rows="2" maxlength="1000" placeholder="Например, новая ставка с августа"></textarea></label>
+              <button class="primary-action" type="submit">Сохранить общие ставки</button>
+            </form>
+
+            <form class="portal-form form-card" id="driverCompensationForm">
+              <h2>Индивидуальные ставки</h2>
+              <label><span>Водитель</span><select id="compensationDriver" required></select></label>
+              <label><span>За километр, ₽</span><input id="driverSalaryRate" inputmode="decimal" placeholder="Общая ставка"></label>
+              <label><span>Суточные за день, ₽</span><input id="driverDailyRate" inputmode="decimal" placeholder="Общая ставка"></label>
+              <p class="field-hint" id="driverRateHint"></p>
+              <label><span>Причина изменения</span><textarea id="driverRateReason" rows="2" maxlength="1000"></textarea></label>
+              <button class="primary-action" type="submit">Сохранить ставки водителя</button>
+            </form>
+
+            <form class="portal-form form-card wide-card" id="driverTransferForm">
+              <div class="profile-heading">
+                <h2>Записать перевод</h2>
+                <p>Можно одним переводом закрыть сразу часть зарплаты, суточных и выдать деньги на расходы.</p>
+              </div>
+              <div class="field-row three">
+                <label><span>Водитель</span><select id="transferDriver" required></select></label>
+                <label>
+                  <span>Направление</span>
+                  <select id="transferDirection" required>
+                    <option value="company_to_driver">Компания → водитель</option>
+                    <option value="driver_to_company">Водитель → компания</option>
+                  </select>
+                </label>
+                <label>
+                  <span>Способ</span>
+                  <select id="driverTransferMethod" required>
+                    <option value="card_transfer">Перевод на карту</option>
+                    <option value="bank">Расчётный счёт</option>
+                    <option value="cash">Наличные</option>
+                  </select>
+                </label>
+              </div>
+              <div class="field-row two">
+                <label><span>Дата и время</span><input id="driverTransferOccurredAt" type="datetime-local" required></label>
+                <label><span>Связанный рейс, если весь перевод относится к нему</span><select id="driverTransferTrip"><option value="">Без привязки к рейсу</option></select></label>
+              </div>
+              <div class="allocation-grid">
+                <label><span>В зарплату, ₽</span><input id="transferSalaryAmount" inputmode="decimal" placeholder="0"></label>
+                <label><span>В суточные, ₽</span><input id="transferDailyAmount" inputmode="decimal" placeholder="0"></label>
+                <label><span>Суточные оплачены по дату</span><input id="transferDailyThrough" type="date"></label>
+                <label><span>Аванс на топливо/ремонт, ₽</span><input id="transferAdvanceAmount" inputmode="decimal" placeholder="0"></label>
+                <label id="transferReimbursementLabel"><span>Компенсация личного расхода, ₽</span><input id="transferReimbursementAmount" inputmode="decimal" placeholder="0"></label>
+              </div>
+              <div class="transfer-total"><span>Общая сумма события</span><strong id="driverTransferTotal">0 ₽</strong></div>
+              <label><span>Комментарий</span><textarea id="driverTransferComment" rows="2" maxlength="2000" placeholder="Назначение или номер перевода"></textarea></label>
+              <label class="file-field">
+                <span>Подтверждение перевода — необязательно</span>
+                <input id="driverTransferProof" type="file" accept="image/*,application/pdf">
+                <strong>Прикрепить квитанцию</strong>
+              </label>
+              <button class="primary-action" id="saveDriverTransferButton" type="submit">Сохранить перевод</button>
+            </form>
+
+            <form class="portal-form form-card" id="driverAdjustmentForm">
+              <div class="profile-heading">
+                <h2>Ручная корректировка</h2>
+                <p>Плюс увеличивает долг компании, минус — долг водителя. Запись остаётся в истории.</p>
+              </div>
+              <label><span>Водитель</span><select id="adjustmentDriver" required></select></label>
+              <label>
+                <span>Раздел</span>
+                <select id="driverAdjustmentCategory" required>
+                  <option value="salary">Зарплата</option>
+                  <option value="daily">Суточные</option>
+                  <option value="general">Общий баланс</option>
+                </select>
+              </label>
+              <label><span>Сумма со знаком, ₽</span><input id="driverAdjustmentAmount" inputmode="decimal" required placeholder="Например, -5000"></label>
+              <label><span>Связанный рейс</span><select id="driverAdjustmentTrip"><option value="">Без привязки</option></select></label>
+              <label><span>Причина обязательна</span><textarea id="driverAdjustmentComment" rows="3" maxlength="2000" required></textarea></label>
+              <button class="primary-action" type="submit">Добавить корректировку</button>
+            </form>
+          </div>
+
+          <div class="portal-section-heading section-spacer">
+            <div><p class="section-kicker">Доступ к системе</p><h2>Учётные записи</h2></div>
+          </div>
+          <div id="accountList" class="portal-list"></div>
+
+          <div class="portal-section-heading section-spacer">
+            <div><p class="section-kicker">Кто кому должен</p><h2>Баланс водителей</h2></div>
+          </div>
+          <div id="driverSettlementList" class="portal-list"></div>
+          <p class="empty-state" id="noDriverSettlements">Сначала добавьте водителя.</p>
+
+          <div class="portal-section-heading section-spacer">
+            <div><p class="section-kicker">Без удаления записей</p><h2>История переводов</h2></div>
+          </div>
+          <div id="driverTransferList" class="portal-list"></div>
+          <p class="empty-state" id="noDriverTransfers">Переводов пока нет.</p>
+        </section>
+
+        <section class="tab-panel" id="officePanelNewTrip" role="region" aria-labelledby="newTripTitle" data-office-panel="new-trip">
+          <form class="portal-form form-card" id="tripForm">
+            <div class="profile-heading">
+              <p><button class="back-link" id="cancelNewTripButton" type="button">← Вернуться к рейсам</button></p>
+              <h2 id="newTripTitle">Создать и назначить рейс</h2>
+              <p>Водитель увидит маршрут и инструкции, но не ставку, НДС и договор.</p>
+            </div>
+            <div class="field-row two">
+              <label>
+                <span>Заказчик</span>
+                <select id="tripCustomer" required></select>
+              </label>
+              <label>
+                <span>Сцепка</span>
+                <select id="tripRig" required></select>
+              </label>
+            </div>
+            <div class="field-row two">
+              <label>
+                <span>Номер заявки</span>
+                <input id="tripNumber" maxlength="80" placeholder="Необязательно">
+              </label>
+              <label>
+                <span>Дата погрузки</span>
+                <input id="tripLoadingDate" type="date" required>
+              </label>
+            </div>
+            <label>
+              <span>Адрес погрузки</span>
+              <input id="tripLoadingAddress" maxlength="500" required>
+            </label>
+            <label>
+              <span>Адрес или город разгрузки</span>
+              <input id="tripUnloadingAddress" maxlength="500" required>
+            </label>
+            <label class="check-row">
+              <input id="tripUnloadingApproximate" type="checkbox">
+              <span>Адрес разгрузки пока приблизительный</span>
+            </label>
+            <label>
+              <span>Дополнительные точки разгрузки — по одной в строке</span>
+              <textarea id="tripAdditionalStops" rows="3" maxlength="3000" placeholder="Оставьте пустым, если точка одна"></textarea>
+            </label>
+            <div class="field-row three">
+              <label>
+                <span>Ставка рейса, ₽</span>
+                <input id="tripRate" inputmode="decimal" required placeholder="120000">
+              </label>
+              <label>
+                <span>НДС</span>
+                <select id="tripVatMode" required>
+                  <option value="with_vat">С НДС</option>
+                  <option value="without_vat">Без НДС</option>
+                </select>
+              </label>
+              <label>
+                <span>Оплата</span>
+                <select id="tripPaymentMethod" required>
+                  <option value="bank">Расчётный счёт</option>
+                  <option value="cash">Наличные</option>
+                  <option value="card_transfer">Перевод на карту</option>
+                </select>
+              </label>
+            </div>
+            <label>
+              <span>Срок оплаты после разгрузки, дней</span>
+              <input id="tripPaymentTerm" type="number" min="0" step="1" value="14" required>
+            </label>
+            <div class="field-row two">
+              <label>
+                <span>Особая ставка водителю за км, ₽</span>
+                <input id="tripSalaryRateOverride" inputmode="decimal" placeholder="Оставьте пустым для обычной ставки">
+              </label>
+              <label>
+                <span>Особые суточные за день, ₽</span>
+                <input id="tripDailyRateOverride" inputmode="decimal" placeholder="Оставьте пустым для обычной ставки">
+              </label>
+            </div>
+            <label>
+              <span>Груз</span>
+              <textarea id="tripCargo" rows="2" maxlength="2000" placeholder="Наименование, вес, габариты"></textarea>
+            </label>
+            <label>
+              <span>Инструкции водителю</span>
+              <textarea id="tripInstructions" rows="3" maxlength="3000"></textarea>
+            </label>
+            <label class="file-field">
+              <span>Договор-заявка — можно добавить позже</span>
+              <input id="tripContract" type="file" accept="image/*,application/pdf,.doc,.docx">
+              <strong>Прикрепить договор-заявку</strong>
+            </label>
+            <button class="primary-action" id="createTripButton" type="submit">Создать рейс</button>
+            <p class="form-warning" id="tripPrerequisiteHint" hidden></p>
+          </form>
+        </section>
+
+        <section class="tab-panel" id="officePanelFleet" role="tabpanel" aria-labelledby="officeTabFleet" data-office-panel="fleet">
+          <div class="setup-grid">
+            <form class="portal-form form-card" id="officeUserForm">
+              <h2>Добавить сотрудника офиса</h2>
+              <label><span>ФИО</span><input id="officeUserFullName" required></label>
+              <label><span>Телефон</span><input id="officeUserPhone" type="tel"></label>
+              <label><span>Логин</span><input id="officeUserLogin" autocomplete="off" required></label>
+              <label><span>Временный пароль</span><input id="officeUserPassword" type="password" minlength="10" autocomplete="new-password" required></label>
+              <button class="primary-action" type="submit">Добавить сотрудника</button>
+            </form>
+
+            <form class="portal-form form-card" id="driverForm">
+              <h2>Добавить водителя</h2>
+              <label><span>ФИО</span><input id="driverFullName" required></label>
+              <label><span>Телефон</span><input id="driverPhone" type="tel"></label>
+              <label><span>Логин</span><input id="driverLogin" autocomplete="off" required></label>
+              <label><span>Временный пароль</span><input id="driverPassword" type="password" minlength="10" autocomplete="new-password" required></label>
+              <button class="primary-action" type="submit">Добавить водителя</button>
+            </form>
+
+            <form class="portal-form form-card" id="tractorForm">
+              <h2>Добавить тягач</h2>
+              <div class="field-row two">
+                <label><span>Марка</span><input id="tractorBrand" required></label>
+                <label><span>Модель</span><input id="tractorModel"></label>
+              </div>
+              <label><span>Госномер</span><input id="tractorPlate" required></label>
+              <label><span>VIN</span><input id="tractorVin"></label>
+              <button class="primary-action" type="submit">Добавить тягач</button>
+            </form>
+
+            <form class="portal-form form-card" id="trailerForm">
+              <h2>Добавить трал</h2>
+              <div class="field-row two">
+                <label><span>Марка</span><input id="trailerBrand" required></label>
+                <label><span>Модель</span><input id="trailerModel"></label>
+              </div>
+              <div class="field-row two">
+                <label><span>Госномер</span><input id="trailerPlate" required></label>
+                <label><span>Количество осей</span><input id="trailerAxles" type="number" min="1"></label>
+              </div>
+              <label><span>Грузоподъёмность, кг</span><input id="trailerCapacity" type="number" min="0"></label>
+              <label><span>Тип и особенности</span><input id="trailerType" placeholder="Низкорамный, раздвижной..."></label>
+              <button class="primary-action" type="submit">Добавить трал</button>
+            </form>
+
+            <form class="portal-form form-card" id="rigForm">
+              <h2>Создать сцепку</h2>
+              <label><span>Название</span><input id="rigName" required placeholder="К5 + трал 4 оси"></label>
+              <label><span>Тягач</span><select id="rigTractor" required></select></label>
+              <label><span>Трал</span><select id="rigTrailer" required></select></label>
+              <label><span>Водитель</span><select id="rigDriver"><option value="">Пока без водителя</option></select></label>
+              <button class="primary-action" type="submit">Создать сцепку</button>
+            </form>
+
+            <form class="portal-form form-card" id="recurringCostForm">
+              <h2>Постоянный расход сцепки</h2>
+              <label><span>Сцепка</span><select id="recurringCostRig" required></select></label>
+              <label>
+                <span>Категория</span>
+                <input id="recurringCostCategory" list="recurringCostCategories" required placeholder="Лизинг тягача">
+                <datalist id="recurringCostCategories">
+                  <option value="Лизинг тягача"></option>
+                  <option value="Лизинг трала"></option>
+                  <option value="Страховка"></option>
+                  <option value="Связь и оборудование"></option>
+                  <option value="Прочее"></option>
+                </datalist>
+              </label>
+              <label><span>Сумма, ₽</span><input id="recurringCostAmount" inputmode="decimal" required placeholder="60000"></label>
+              <label>
+                <span>Как учитывать</span>
+                <select id="recurringCostMode" required>
+                  <option value="monthly">Повторять эту сумму каждый месяц</option>
+                  <option value="equal_months">Разделить общую сумму на месяцы</option>
+                </select>
+              </label>
+              <label id="recurringCostMonthsLabel" hidden><span>На сколько месяцев разделить</span><input id="recurringCostMonths" type="number" min="1" max="120" value="12"></label>
+              <div class="field-row two">
+                <label><span>С какого месяца</span><input id="recurringCostFrom" type="month" required></label>
+                <label><span>По какой месяц</span><input id="recurringCostTo" type="month"></label>
+              </div>
+              <label><span>Комментарий</span><textarea id="recurringCostComment" rows="2" maxlength="1000"></textarea></label>
+              <button class="primary-action" type="submit">Добавить постоянный расход</button>
+            </form>
+
+            <form class="portal-form form-card" id="expenseCategoryForm">
+              <div class="profile-heading">
+                <h2>Категории расходов водителя</h2>
+                <p>Активные категории сразу появляются в кабинете водителя. Старые расходы сохраняются при отключении категории.</p>
+              </div>
+              <label><span>Новая категория</span><input id="expenseCategoryName" maxlength="100" required placeholder="Например, сопровождение"></label>
+              <button class="primary-action" type="submit">Добавить категорию</button>
+              <div id="expenseCategoryList" class="category-settings-list"></div>
+            </form>
+
+            <form class="portal-form form-card" id="rigCompositionForm">
+              <div class="profile-heading">
+                <h2>Изменить состав сцепки</h2>
+                <p>Завершённые рейсы сохранят прежний состав. Ещё не начатые рейсы будут безопасно переназначены новому водителю и составу.</p>
+              </div>
+              <label><span>Сцепка</span><select id="compositionRig" required></select></label>
+              <label><span>Тягач</span><select id="compositionTractor" required></select></label>
+              <label><span>Трал</span><select id="compositionTrailer" required></select></label>
+              <label><span>Водитель</span><select id="compositionDriver"><option value="">Пока без водителя</option></select></label>
+              <button class="primary-action" type="submit">Сохранить новый состав</button>
+            </form>
+          </div>
+
+          <div class="portal-section-heading section-spacer">
+            <div><p class="section-kicker">Текущий состав</p><h2>Сцепки</h2></div>
+          </div>
+          <div id="rigList" class="portal-list"></div>
+
+          <div class="portal-section-heading section-spacer">
+            <div><p class="section-kicker">Лизинг, страховка и прочее</p><h2>Постоянные расходы</h2></div>
+          </div>
+          <div id="recurringCostList" class="portal-list"></div>
+          <p class="empty-state" id="noRecurringCosts">Постоянные расходы ещё не добавлены.</p>
+        </section>
+
+        <section class="tab-panel" id="officePanelCustomers" role="tabpanel" aria-labelledby="officeTabCustomers" data-office-panel="customers">
+          <div class="setup-grid">
+            <form class="portal-form form-card" id="customerForm">
+              <h2>Добавить заказчика</h2>
+              <label><span>Краткое название</span><input id="customerShortName" required></label>
+              <label><span>Полное название</span><input id="customerFullName"></label>
+              <label><span>ИНН</span><input id="customerInn" inputmode="numeric"></label>
+              <label><span>Обычный срок оплаты, дней</span><input id="customerTerm" type="number" min="0"></label>
+              <button class="primary-action" type="submit">Добавить заказчика</button>
+            </form>
+
+            <form class="portal-form form-card" id="contactForm">
+              <h2>Добавить контакт</h2>
+              <label><span>Заказчик</span><select id="contactCustomer" required></select></label>
+              <label><span>Контактное лицо</span><input id="contactFullName" required></label>
+              <label><span>Должность</span><input id="contactPosition"></label>
+              <label><span>Телефоны через запятую</span><input id="contactPhones" type="tel"></label>
+              <label><span>Электронная почта</span><input id="contactEmail" type="email"></label>
+              <button class="primary-action" type="submit">Добавить контакт</button>
+            </form>
+          </div>
+
+          <div class="portal-section-heading section-spacer">
+            <div><p class="section-kicker">Заказчики и оплаты</p><h2>Задолженность</h2></div>
+            <label class="check-row inline-check"><input id="debtorsOnly" type="checkbox"><span>Только должники</span></label>
+          </div>
+          <div id="customerList" class="portal-list"></div>
+          <div class="empty-state empty-state-action" id="noCustomers">
+            <p>Заказчиков пока нет. Добавьте заказчика, чтобы создавать рейсы и учитывать оплаты.</p>
+            <button type="button" data-customer-empty-action="add">Добавить заказчика</button>
+          </div>
+        </section>
+
+        <section class="tab-panel" id="officePanelSettings" role="tabpanel" aria-labelledby="officeTabSettings" data-office-panel="settings">
+          <div class="portal-section-heading">
+            <div>
+              <p class="section-kicker">Команда и правила учёта</p>
+              <h2>Настройки</h2>
+              <p>Здесь собраны доступ сотрудников и категории расходов. Финансовые данные остаются в рабочих разделах.</p>
+            </div>
+          </div>
+          <div class="section-switcher" id="settingsSectionSwitcher" aria-label="Настройки">
+            <button type="button" data-office-route="settings/access">Доступ</button>
+            <button type="button" data-office-route="settings/categories">Категории расходов</button>
+          </div>
+          <section class="office-subview" data-office-subview="settings/access">
+            <div class="setup-grid" id="settingsPeopleForms"></div>
+            <div class="portal-section-heading section-spacer">
+              <div><p class="section-kicker">Вход в систему</p><h2>Учётные записи</h2></div>
+            </div>
+            <div id="settingsAccountList"></div>
+          </section>
+          <section class="office-subview" data-office-subview="settings/categories" hidden>
+            <div id="settingsExpenseCategories"></div>
+          </section>
+        </section>
+      </main>
+    </div>
+
+    <dialog id="paymentDialog" aria-labelledby="paymentDialogTitle">
+      <form class="portal-form form-card" id="paymentForm">
+        <div class="profile-heading">
+          <h2 id="paymentDialogTitle">Добавить оплату заказчика</h2>
+          <p id="paymentTripLabel"></p>
+        </div>
+        <label>
+          <span>Сумма, ₽</span>
+          <input id="paymentAmount" inputmode="decimal" autocomplete="off" required placeholder="30000">
+        </label>
+        <div class="field-row two">
+          <label>
+            <span>Вид оплаты</span>
+            <select id="paymentType" required>
+              <option value="advance">Аванс</option>
+              <option value="partial">Частичная оплата</option>
+              <option value="final">Окончательная оплата</option>
+              <option value="other">Другое</option>
+            </select>
+          </label>
+          <label>
+            <span>Способ оплаты</span>
+            <select id="paymentMethod" required>
+              <option value="bank">Расчётный счёт</option>
+              <option value="cash">Наличные</option>
+              <option value="card_transfer">Перевод на карту</option>
+            </select>
+          </label>
+        </div>
+        <label>
+          <span>Фактические дата и время оплаты</span>
+          <input id="paymentReceivedAt" type="datetime-local" required>
+        </label>
+        <label>
+          <span>Комментарий</span>
+          <textarea id="paymentComment" rows="3" maxlength="1000" placeholder="Например, оплата по счёту или номер платежа"></textarea>
+        </label>
+        <label class="file-field">
+          <span>Подтверждение оплаты — необязательно</span>
+          <input id="paymentProof" type="file" accept="image/*,application/pdf">
+          <strong>Прикрепить платёжный документ</strong>
+        </label>
+        <div class="card-actions portal-card-actions">
+          <button id="paymentCancelButton" type="button">Отмена</button>
+          <button class="primary-action" id="paymentSubmitButton" type="submit">Сохранить оплату</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="action-dialog" id="officeActionDialog" aria-labelledby="officeActionDialogTitle">
+      <form class="portal-form form-card" id="officeActionForm">
+        <div class="profile-heading">
+          <p class="section-kicker" id="officeActionDialogEyebrow">Действие</p>
+          <h2 id="officeActionDialogTitle">Подтвердите действие</h2>
+          <p id="officeActionDialogDescription"></p>
+        </div>
+        <div id="officeActionDialogFields"></div>
+        <p class="form-error" id="officeActionDialogError" role="alert" hidden></p>
+        <div class="dialog-actions">
+          <button id="officeActionDialogCancel" type="button">Отмена</button>
+          <button class="primary-action" id="officeActionDialogSubmit" type="submit">Продолжить</button>
+        </div>
+      </form>
+    </dialog>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script src="./office.js?v=55" type="module"></script>
+  </body>
+</html>
