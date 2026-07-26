@@ -1,0 +1,4 @@
+interface:
+  display_name: "Fleet Product Design"
+  short_description: "Коммерческий UX/UI автопарка для мобильных и ПК"
+  default_prompt: "Используй $fleet-product-design, чтобы улучшить интерфейс автопарка как понятный, последовательный и проверенный коммерческий продукт."

@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#ffffff">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="ANB Водитель">
+    <title>Кабинет водителя · ANB</title>
+    <link rel="manifest" href="./manifest.webmanifest?v=55">
+    <link rel="icon" href="./icon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="./apple-touch-icon.png">
+    <link rel="stylesheet" href="./styles.css?v=55">
+  </head>
+  <body class="driver-page">
+    <div class="app-shell driver-shell portal-shell">
+      <header class="topbar">
+        <div class="brand">
+          <span class="brand-mark"><img src="./anb-logo.svg" alt="ANB Group"></span>
+          <div>
+            <p class="eyebrow">Кабинет водителя</p>
+            <h1 id="driverName">ANB</h1>
+          </div>
+        </div>
+        <div class="header-actions driver-header-actions">
+          <span class="status-pill" id="networkStatus" role="status" aria-live="polite">Проверяем сеть</span>
+          <details class="driver-account-menu account-menu">
+            <summary>Настройки</summary>
+            <div>
+              <button class="header-button push-button" id="pushNotificationsButton" type="button" hidden>Включить уведомления</button>
+              <button class="header-button" id="changePasswordButton" type="button">Сменить пароль</button>
+              <button class="header-button" id="clearDeviceButton" type="button" title="Удалить локальные данные с телефона">Очистить данные</button>
+              <button class="header-button" id="logoutButton" type="button">Выйти</button>
+            </div>
+          </details>
+        </div>
+      </header>
+
+      <main>
+        <nav class="tabs driver-tabs" aria-label="Разделы" role="tablist">
+          <button class="tab-button active" id="driverTabTrip" type="button" role="tab" aria-controls="driverPanelTrip" aria-selected="true" tabindex="0" data-driver-tab="trip">Рейс</button>
+          <button class="tab-button" id="driverTabExpense" type="button" role="tab" aria-controls="driverPanelExpense" aria-selected="false" tabindex="-1" data-driver-tab="expense">Расход</button>
+          <button class="tab-button" id="driverTabJournal" type="button" role="tab" aria-controls="driverPanelJournal" aria-selected="false" tabindex="-1" data-driver-tab="journal">История</button>
+          <button class="tab-button" id="driverTabMoney" type="button" role="tab" aria-controls="driverPanelMoney" aria-selected="false" tabindex="-1" data-driver-tab="money" hidden>Деньги</button>
+        </nav>
+
+        <section class="tab-panel active" id="driverPanelTrip" role="tabpanel" aria-labelledby="driverTabTrip" data-driver-panel="trip">
+          <div class="driver-section-title">
+            <h2>Активный рейс</h2>
+          </div>
+          <article class="trip-detail-card" id="tripDetail" hidden>
+            <div class="portal-section-heading">
+              <div>
+                <p class="section-kicker">Назначенный рейс</p>
+                <h2 id="tripRoute"></h2>
+              </div>
+              <span class="status-badge" id="tripStatus"></span>
+            </div>
+            <dl class="detail-grid" id="tripFacts"></dl>
+
+            <form class="portal-form action-form" id="startTripForm" hidden>
+              <h3>Начать рейс после загрузки</h3>
+              <label>
+                <span>Фактические дата и время загрузки</span>
+                <input id="loadedAt" type="datetime-local" required>
+              </label>
+              <label>
+                <span>Показание одометра, км</span>
+                <input id="startOdometer" type="number" inputmode="numeric" min="0" step="1" required>
+              </label>
+              <label class="file-field">
+                <span>Фото одометра обязательно</span>
+                <input id="startOdometerPhoto" type="file" accept="image/*" capture="environment" required>
+                <strong>Сфотографировать одометр</strong>
+              </label>
+              <button class="primary-action" type="submit">Начать рейс</button>
+            </form>
+
+            <form class="portal-form action-form" id="completeTripForm" hidden>
+              <h3>Завершить рейс после разгрузки</h3>
+              <label>
+                <span>Фактические дата и время разгрузки</span>
+                <input id="unloadedAt" type="datetime-local" required>
+              </label>
+              <label>
+                <span>Конечное показание одометра, км</span>
+                <input id="endOdometer" type="number" inputmode="numeric" min="0" step="1" required>
+              </label>
+              <label class="file-field">
+                <span>Фото одометра обязательно</span>
+                <input id="endOdometerPhoto" type="file" accept="image/*" capture="environment" required>
+                <strong>Сфотографировать одометр</strong>
+              </label>
+              <button class="primary-action" type="submit">Завершить рейс</button>
+            </form>
+          </article>
+
+          <div class="driver-quick-actions" id="driverQuickActions">
+            <button class="primary-action driver-primary-shortcut" id="driverPrimaryShortcut" type="button">Добавить расход</button>
+            <div>
+              <button class="secondary-action" id="tripDetailsShortcut" type="button">Детали рейса</button>
+              <button class="secondary-action" id="receiptPhotoShortcut" type="button">Фото чека</button>
+            </div>
+          </div>
+
+          <section class="summary-grid driver-summary" aria-label="Сводка">
+            <div class="summary-item">
+              <span>Статус рейса</span>
+              <strong id="activeTripSummary">Нет</strong>
+            </div>
+            <div class="summary-item">
+              <span>Расходы рейса до проверки</span>
+              <strong id="tripExpenseTotal">0 ₽</strong>
+            </div>
+            <div class="summary-item">
+              <span>Чеков</span>
+              <strong id="tripExpenseCount">0</strong>
+            </div>
+          </section>
+
+          <section class="driver-notification-section" id="driverSyncQueueSection" hidden>
+            <div class="portal-section-heading">
+              <div>
+                <p class="section-kicker">Сохранено на телефоне</p>
+                <h2>Очередь отправки</h2>
+              </div>
+              <span class="status-badge" id="driverSyncQueueCount">0</span>
+            </div>
+            <div id="driverSyncQueueList" class="portal-list"></div>
+          </section>
+          <section class="driver-notification-section" id="driverNotificationSection" hidden>
+            <div class="portal-section-heading">
+              <div>
+                <p class="section-kicker">Сообщения офиса</p>
+                <h2>Уведомления</h2>
+              </div>
+              <span class="status-badge" id="driverNotificationCount">0 новых</span>
+            </div>
+            <div id="driverNotificationList" class="portal-list"></div>
+          </section>
+
+          <div class="driver-section-title driver-all-trips-title">
+            <h2>Мои рейсы</h2>
+          </div>
+          <div id="tripList" class="portal-list"></div>
+          <p class="empty-state" id="noTrips">Офис пока не назначил вам рейс.</p>
+        </section>
+
+        <section class="tab-panel" id="driverPanelExpense" role="tabpanel" aria-labelledby="driverTabExpense" data-driver-panel="expense">
+          <form class="expense-form" id="driverExpenseForm">
+            <div class="profile-heading">
+              <h2>Новый расход</h2>
+              <p id="expenseTripHint">Расход можно добавить после начала рейса.</p>
+            </div>
+            <div class="field-row two">
+              <label>
+                <span>Сумма, ₽</span>
+                <input id="expenseAmount" type="text" inputmode="decimal" placeholder="0,00" required>
+              </label>
+              <label>
+                <span>Категория</span>
+                <select id="expenseCategory" required>
+                  <option>Топливо</option>
+                  <option>Запчасти</option>
+                  <option>Ремонт</option>
+                  <option>Техническое обслуживание</option>
+                  <option>Гостиница</option>
+                  <option>Стоянка</option>
+                  <option>Платная дорога</option>
+                  <option>Мойка</option>
+                  <option>Шиномонтаж</option>
+                  <option>Эвакуатор</option>
+                  <option>Расходные материалы</option>
+                  <option>Прочее</option>
+                </select>
+              </label>
+            </div>
+            <label>
+              <span>Дата и время расхода</span>
+              <input id="expenseOccurredAt" type="datetime-local" required>
+            </label>
+            <div class="field-row two">
+              <label>
+                <span>Как оплачено</span>
+                <select id="expensePaymentMethod" required>
+                  <option value="cash">Наличные</option>
+                  <option value="card">Банковская карта</option>
+                  <option value="transfer">Перевод</option>
+                  <option value="fuel_card">Топливная карта</option>
+                </select>
+              </label>
+              <label>
+                <span>Чьи деньги</span>
+                <select id="expensePaymentSource" required>
+                  <option value="driver_advance">Выданный аванс</option>
+                  <option value="driver_personal">Личные деньги водителя</option>
+                  <option value="company_card">Карта компании</option>
+                  <option value="company_fuel_card">Топливная карта компании</option>
+                  <option value="company_cash">Наличные компании</option>
+                </select>
+              </label>
+            </div>
+            <label>
+              <span>Кому оплачено</span>
+              <input id="expenseSupplier" maxlength="200" placeholder="АЗС, сервис или магазин">
+            </label>
+            <label>
+              <span>Место расхода</span>
+              <input id="expenseLocation" maxlength="500" placeholder="Город, АЗС или стоянка">
+            </label>
+            <label>
+              <span>Комментарий обязателен</span>
+              <textarea id="expenseDescription" rows="3" maxlength="2000" required placeholder="Что куплено или что произошло"></textarea>
+            </label>
+            <label class="file-field">
+              <span>Фото чека обязательно</span>
+              <input id="expenseReceipt" type="file" accept="image/*,application/pdf" capture="environment" required>
+              <strong>Сфотографировать или выбрать чек</strong>
+            </label>
+            <button class="primary-action save-expense" id="saveDriverExpense" type="submit">Сохранить расход</button>
+          </form>
+        </section>
+
+        <section class="tab-panel" id="driverPanelJournal" role="tabpanel" aria-labelledby="driverTabJournal" data-driver-panel="journal">
+          <div class="portal-section-heading">
+            <div>
+              <p class="section-kicker">Мои записи</p>
+              <h2>История расходов</h2>
+            </div>
+          </div>
+          <div class="driver-history-filters">
+            <label>
+              <span>Показать</span>
+              <select id="driverExpenseStatusFilter">
+                <option value="">Все расходы</option>
+                <option value="pending_review">На проверке</option>
+                <option value="needs_explanation">Нужно пояснение</option>
+                <option value="confirmed">Подтверждённые</option>
+                <option value="rejected">Отклонённые</option>
+                <option value="queued">Ожидают отправки</option>
+              </select>
+            </label>
+          </div>
+          <div id="driverExpenseList" class="expense-list"></div>
+          <p class="empty-state" id="noExpenses">Расходов по выбранному фильтру нет.</p>
+        </section>
+
+        <section class="tab-panel" id="driverPanelMoney" role="tabpanel" aria-labelledby="driverTabMoney" data-driver-panel="money" hidden>
+          <article class="money-balance-card" id="driverMoneyCard">
+            <p class="section-kicker">Текущий взаиморасчёт</p>
+            <h2 id="driverBalanceHeadline">Расчёт ещё не сформирован</h2>
+            <p id="driverBalanceNote">Здесь отдельно показаны начисления, реальные выплаты и авансы на расходы.</p>
+            <div class="finance-grid money-breakdown">
+              <div><span>Зарплата начислена</span><strong id="driverSalaryAccrued">0 ₽</strong></div>
+              <div><span>Зарплата выплачена</span><strong id="driverSalaryPaid">0 ₽</strong></div>
+              <div><span>Суточные начислены</span><strong id="driverDailyAccrued">0 ₽</strong></div>
+              <div><span>Суточные выплачены</span><strong id="driverDailyPaid">0 ₽</strong></div>
+              <div><span>Остаток авансов</span><strong id="driverAdvanceBalance">0 ₽</strong></div>
+              <div><span>Личные расходы к компенсации</span><strong id="driverReimbursementBalance">0 ₽</strong></div>
+            </div>
+            <p class="field-hint" id="driverDailyPeriod"></p>
+            <p class="form-warning" id="driverUnconfirmedExpenses" hidden></p>
+          </article>
+
+          <div class="portal-section-heading section-spacer">
+            <div><p class="section-kicker">Начисления и деньги</p><h2>История</h2></div>
+          </div>
+          <div id="driverMoneyHistory" class="portal-list"></div>
+          <p class="empty-state" id="noDriverMoneyHistory">Начислений и выплат пока нет.</p>
+        </section>
+      </main>
+    </div>
+    <dialog class="action-dialog driver-action-dialog" id="driverActionDialog" aria-labelledby="driverActionDialogTitle">
+      <form class="portal-form form-card" id="driverActionForm">
+        <div class="profile-heading">
+          <p class="section-kicker" id="driverActionDialogEyebrow">Подтверждение</p>
+          <h2 id="driverActionDialogTitle">Продолжить?</h2>
+          <p id="driverActionDialogDescription"></p>
+        </div>
+        <div id="driverActionDialogFields"></div>
+        <div class="dialog-actions">
+          <button id="driverActionDialogCancel" type="button">Отмена</button>
+          <button class="primary-action" id="driverActionDialogSubmit" type="submit">Продолжить</button>
+        </div>
+      </form>
+    </dialog>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script src="./driver.js?v=55" type="module"></script>
+  </body>
+</html>

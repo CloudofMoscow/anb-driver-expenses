@@ -1,0 +1,21 @@
+{
+  "name": "anb-fleet-finance",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Единая система рейсов, расходов и финансового контроля автопарка ANB",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "node --watch server/start.js",
+    "start": "node server/start.js",
+    "demo": "node server/demo.js",
+    "backup": "node server/backup.js",
+    "test": "node --test",
+    "check": "node --check server/start.js && node --check server/demo.js && node --check server/app.js && node --check server/database.js && node --check server/security.js && node --check server/push-service.js && node --check server/backup.js && node --check api-client.js && node --check financial-mutation.js && node --check push-notifications.js && node --check login.js && node --check office.js && node --check driver.js && node --check driver-outbox.js && node --check app.js && node --check sw.js"
+  },
+  "dependencies": {
+    "web-push": "3.6.7"
+  }
+}
