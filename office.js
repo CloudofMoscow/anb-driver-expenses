@@ -34,12 +34,20 @@ const els = {
   overviewTripList: document.querySelector("#overviewTripList"),
   noOverviewTrips: document.querySelector("#noOverviewTrips"),
   overviewAttentionList: document.querySelector("#overviewAttentionList"),
+  globalSearch: document.querySelector("#officeGlobalSearch"),
+  globalSearchResults: document.querySelector("#officeGlobalSearchResults"),
+  workspaceTaskList: document.querySelector("#workspaceTaskList"),
+  workspaceControlList: document.querySelector("#workspaceControlList"),
+  workspaceRecentList: document.querySelector("#workspaceRecentList"),
+  workspaceObjectList: document.querySelector("#workspaceObjectList"),
+  workspaceAllTasksButton: document.querySelector("#workspaceAllTasksButton"),
   notificationSection: document.querySelector("#officeNotificationSection"),
   notificationCount: document.querySelector("#officeNotificationCount"),
   notificationList: document.querySelector("#officeNotificationList"),
   tabs: document.querySelectorAll("[data-office-tab]"),
   panels: document.querySelectorAll("[data-office-panel]"),
   tripStatusFilter: document.querySelector("#tripStatusFilter"),
+  tripSearch: document.querySelector("#tripSearch"),
   tripList: document.querySelector("#officeTripList"),
   tripDetail: document.querySelector("#officeTripDetail"),
   tripDetailContent: document.querySelector("#officeTripDetailContent"),
@@ -54,6 +62,7 @@ const els = {
   reportRig: document.querySelector("#reportRig"),
   buildReportButton: document.querySelector("#buildReportButton"),
   reportRevenue: document.querySelector("#reportRevenue"),
+  reportTotalCosts: document.querySelector("#reportTotalCosts"),
   reportTripExpenses: document.querySelector("#reportTripExpenses"),
   reportDriverCompensation: document.querySelector("#reportDriverCompensation"),
   reportFixedCosts: document.querySelector("#reportFixedCosts"),
@@ -130,6 +139,11 @@ const els = {
   contactForm: document.querySelector("#contactForm"),
   contactCustomer: document.querySelector("#contactCustomer"),
   debtorsOnly: document.querySelector("#debtorsOnly"),
+  customerSearch: document.querySelector("#customerSearch"),
+  quickCreateTripButton: document.querySelector("#quickCreateTripButton"),
+  quickRecordPaymentButton: document.querySelector("#quickRecordPaymentButton"),
+  quickDriverTransferButton: document.querySelector("#quickDriverTransferButton"),
+  quickAddExpenseButton: document.querySelector("#quickAddExpenseButton"),
   customerList: document.querySelector("#customerList"),
   noCustomers: document.querySelector("#noCustomers"),
   companyCompensationForm: document.querySelector("#companyCompensationForm"),
@@ -206,6 +220,7 @@ let refreshing = false;
 let selectedTripId = null;
 let currentOfficeRoute = "overview";
 let actionDialogResolver = null;
+let workspaceFilter = "all";
 
 const COMPLETED_TRIP_STATUSES = new Set(["pending_review", "needs_explanation", "confirmed", "closed"]);
 
@@ -323,7 +338,7 @@ function renderAccounts() {
   accounts.forEach((account) => {
     const active = Boolean(account.is_active);
     const card = document.createElement("article");
-    card.className = `compact-info-card${active ? "" : " reversed-entry"}`;
+    card.className = `compact-info-card account-card${active ? "" : " reversed-entry"}`;
     card.innerHTML = `
       <div class="trip-card-heading">
         <div><strong>${escapeHtml(account.full_name)}</strong><span>${escapeHtml(account.roleLabel)} · ${escapeHtml(account.login)}</span></div>
@@ -437,6 +452,7 @@ function renderSummary() {
 }
 
 function renderOverview() {
+  renderOfficeWorkspace();
   const activeTrips = state.trips
     .filter((trip) => ["assigned", "awaiting_loading", "in_progress"].includes(trip.status))
     .slice(0, 4);
@@ -456,6 +472,7 @@ function renderOverview() {
       <div class="overview-trip-driver">
         <strong>${escapeHtml(trip.driver_name || "Водитель не назначен")}</strong>
         <span>${escapeHtml(trip.tractor_label || trip.rig_name || "Транспорт не указан")}</span>
+        ${trip.latest_location_captured_at ? `<small>Геопозиция: ${escapeHtml(formatDateTime(trip.latest_location_captured_at))}</small>` : ""}
       </div>
       <div class="overview-trip-status">
         <span class="status-badge" data-status="${escapeHtml(trip.status)}">${escapeHtml(statusLabel(trip.status))}</span>
@@ -488,7 +505,7 @@ function renderOverview() {
       title: `${pendingExpenses.length} ${pluralize(pendingExpenses.length, "расход на проверке", "расхода на проверке", "расходов на проверке")}`,
       note: `На сумму: ${formatRubles(pendingExpenses.reduce((total, expense) => total + Number(expense.amount_kopecks || 0), 0))}`,
       action: "Открыть",
-      target: "dashboard"
+      target: "expenses"
     },
     {
       title: unreadNotifications.length
@@ -510,9 +527,126 @@ function renderOverview() {
   });
 }
 
+function renderOfficeWorkspace() {
+  const activeTrips = state.trips.filter((trip) => ["assigned", "awaiting_loading", "in_progress"].includes(trip.status));
+  const pendingExpenses = state.expenses.filter((expense) => !["confirmed", "rejected"].includes(expense.status));
+  const receivableTrips = state.trips.filter((trip) => isCompletedTrip(trip) && Number(trip.receivable_kopecks || 0) > 0);
+  const overdueTrips = receivableTrips.filter((trip) => Number(trip.days_overdue || 0) > 0);
+  const reviewTrips = state.trips.filter((trip) => ["pending_review", "needs_explanation"].includes(trip.status));
+  const tasks = [
+    ...overdueTrips.slice(0, 2).map((trip) => ({
+      tone: "urgent", label: "Просрочено", title: `${trip.customer_name} — оплата просрочена на ${trip.days_overdue} дн.`,
+      meta: `${trip.number || "Рейс"} · ${formatRubles(trip.receivable_kopecks)}`, action: "Напомнить", route: "customers"
+    })),
+    ...pendingExpenses.slice(0, 2).map((expense) => ({
+      tone: "today", label: "Требует проверки", title: `Расход ${formatRubles(expense.amount_kopecks)} ждёт проверки`,
+      meta: `${expense.category} · ${state.trips.find((trip) => trip.id === expense.trip_id)?.number || "Рейс"}`, action: "Проверить", route: "expenses"
+    })),
+    ...reviewTrips.slice(0, 2).map((trip) => ({
+      tone: "today", label: "Готов к проверке", title: `${trip.number || "Рейс"} готов к подтверждению`,
+      meta: `${tripRouteText(trip)} · ${trip.driver_name}`, action: "Открыть", route: `trips/${trip.id}`
+    })),
+    ...activeTrips.slice(0, 2).map((trip) => ({
+      tone: "later", label: statusLabel(trip.status), title: `${trip.number || "Рейс"} · ${tripRouteText(trip)}`,
+      meta: `${trip.driver_name} · ${trip.tractor_label}`, action: "Открыть", route: `trips/${trip.id}`
+    }))
+  ];
+  const visibleTasks = workspaceFilter === "all" ? tasks : tasks.filter((task) => task.tone === workspaceFilter);
+  els.workspaceTaskList.innerHTML = visibleTasks.length ? visibleTasks.slice(0, 6).map((task) => `
+    <article class="workspace-task" data-tone="${escapeHtml(task.tone)}">
+      <div><span>${escapeHtml(task.label)}</span><strong>${escapeHtml(task.title)}</strong><small>${escapeHtml(task.meta)}</small></div>
+      <button type="button" data-workspace-route="${escapeHtml(task.route)}">${escapeHtml(task.action)}</button>
+    </article>
+  `).join("") : '<p class="workspace-empty">В этой группе задач сейчас нет.</p>';
+  els.workspaceTaskList.querySelectorAll("[data-workspace-route]").forEach((button) => {
+    button.addEventListener("click", () => navigateOffice(button.dataset.workspaceRoute));
+  });
+
+  const receivable = receivableTrips.reduce((total, trip) => total + Number(trip.receivable_kopecks || 0), 0);
+  els.workspaceControlList.innerHTML = [
+    [activeTrips.length, "активных рейса", "trips"],
+    [pendingExpenses.length, "операции требуют проверки", "expenses"],
+    [formatRubles(receivable), "ожидаем от заказчиков", "customers"]
+  ].map(([value, label, route], index) => `
+    <button type="button" data-workspace-route="${route}"><i data-tone="${index === 0 ? "success" : index === 1 ? "warning" : "danger"}"></i><strong>${escapeHtml(String(value))}</strong><span>${escapeHtml(label)}</span><b>Открыть</b></button>
+  `).join("");
+  els.workspaceControlList.querySelectorAll("[data-workspace-route]").forEach((button) => {
+    button.addEventListener("click", () => navigateOffice(button.dataset.workspaceRoute));
+  });
+
+  const recent = [
+    ...(state.notifications || []).slice(0, 3).map((notification) => ({ title: notification.title, meta: formatDateTime(notification.created_at) })),
+    ...state.trips.slice(0, 3).map((trip) => ({ title: trip.number || tripRouteText(trip), meta: statusLabel(trip.status) }))
+  ].slice(0, 5);
+  els.workspaceRecentList.innerHTML = recent.map((item) => `<div><strong>${escapeHtml(item.title)}</strong><span>${escapeHtml(item.meta)}</span></div>`).join("");
+
+  const objects = [
+    ...state.trips.slice(0, 4).map((trip) => ({ title: trip.number || "Рейс", meta: trip.customer_name || "Рейс", route: `trips/${trip.id}` })),
+    ...state.drivers.slice(0, 1).map((driver) => ({ title: driver.full_name, meta: "Водитель", route: "drivers/balances" })),
+    ...state.customers.slice(0, 1).map((customer) => ({ title: customer.short_name, meta: "Заказчик", route: "customers" }))
+  ];
+  els.workspaceObjectList.innerHTML = objects.map((item) => `<button type="button" data-workspace-route="${escapeHtml(item.route)}"><strong>${escapeHtml(item.title)}</strong><span>${escapeHtml(item.meta)}</span></button>`).join("");
+  els.workspaceObjectList.querySelectorAll("[data-workspace-route]").forEach((button) => {
+    button.addEventListener("click", () => navigateOffice(button.dataset.workspaceRoute));
+  });
+}
+
+function renderGlobalSearchResults() {
+  const query = normalizeSearch(els.globalSearch.value);
+  if (!query) {
+    els.globalSearchResults.hidden = true;
+    els.globalSearchResults.innerHTML = "";
+    return;
+  }
+  const results = [
+    ...state.trips.filter((trip) => normalizeSearch([trip.number, trip.loading_address, trip.unloading_address, trip.customer_name, trip.driver_name].join(" ")).includes(query))
+      .slice(0, 4).map((trip) => ({ title: trip.number || tripRouteText(trip), meta: `Рейс · ${tripRouteText(trip)}`, route: `trips/${trip.id}` })),
+    ...state.customers.filter((customer) => normalizeSearch([customer.short_name, customer.full_name, customer.inn].join(" ")).includes(query))
+      .slice(0, 2).map((customer) => ({ title: customer.short_name, meta: "Заказчик", route: "customers" })),
+    ...state.drivers.filter((driver) => normalizeSearch(driver.full_name).includes(query))
+      .slice(0, 2).map((driver) => ({ title: driver.full_name, meta: "Водитель", route: "drivers/balances" })),
+    ...state.rigs.filter((rig) => normalizeSearch([
+      rig.name, rig.tractor_label, rig.trailer_label, rig.driver_name
+    ].filter(Boolean).join(" ")).includes(query))
+      .slice(0, 3).map((rig) => ({ title: rig.name, meta: `Сцепка · ${rig.tractor_label || "тягач не выбран"}`, route: "fleet/rigs" })),
+    ...state.tractors.filter((tractor) => normalizeSearch([
+      tractor.brand, tractor.model, tractor.plate_number
+    ].filter(Boolean).join(" ")).includes(query))
+      .slice(0, 3).map((tractor) => ({ title: [tractor.brand, tractor.model].filter(Boolean).join(" "), meta: `Тягач · ${tractor.plate_number || "без госномера"}`, route: "fleet/vehicles" })),
+    ...state.trailers.filter((trailer) => normalizeSearch([
+      trailer.brand, trailer.model, trailer.plate_number
+    ].filter(Boolean).join(" ")).includes(query))
+      .slice(0, 3).map((trailer) => ({ title: [trailer.brand, trailer.model].filter(Boolean).join(" "), meta: `Трал · ${trailer.plate_number || "без госномера"}`, route: "fleet/vehicles" }))
+  ].slice(0, 8);
+  els.globalSearchResults.hidden = false;
+  els.globalSearchResults.innerHTML = results.length
+    ? results.map((item) => `<button type="button" data-global-result="${escapeHtml(item.route)}"><strong>${escapeHtml(item.title)}</strong><span>${escapeHtml(item.meta)}</span></button>`).join("")
+    : '<p>Ничего не найдено</p>';
+  els.globalSearchResults.querySelectorAll("[data-global-result]").forEach((button) => {
+    button.addEventListener("click", () => {
+      els.globalSearchResults.hidden = true;
+      navigateOffice(button.dataset.globalResult);
+    });
+  });
+}
+
+function closeGlobalSearch({ clear = true } = {}) {
+  els.globalSearchResults.hidden = true;
+  els.globalSearchResults.innerHTML = "";
+  if (clear) els.globalSearch.value = "";
+}
+
 function renderTrips() {
   const filter = els.tripStatusFilter.value;
-  const trips = state.trips.filter((trip) => !filter || trip.status === filter);
+  const query = normalizeSearch(els.tripSearch?.value);
+  const trips = state.trips.filter((trip) => {
+    if (filter && trip.status !== filter) return false;
+    if (!query) return true;
+    return normalizeSearch([
+      trip.number, trip.loading_address, trip.unloading_address,
+      trip.customer_name, trip.driver_name, trip.rig_name, trip.tractor_label
+    ].filter(Boolean).join(" ")).includes(query);
+  });
   const detailTrip = selectedTripId ? state.trips.find((trip) => trip.id === selectedTripId) : null;
   const tripsPanel = document.querySelector("[data-office-panel='dashboard']");
   tripsPanel?.classList.toggle("trip-detail-open", Boolean(detailTrip));
@@ -560,6 +694,10 @@ function renderTripDetail(trip) {
   const completed = isCompletedTrip(trip);
   const confirmed = ["confirmed", "closed"].includes(trip.status);
   const expenses = resultExpenses(trip);
+  const driverCompensation = confirmed
+    ? Number(trip.driver_compensation_kopecks || 0)
+    : completed ? Number(trip.estimated_driver_compensation_kopecks || 0) : null;
+  const totalTripCost = completed ? expenses + Number(driverCompensation || 0) : null;
   const result = completed
     ? (confirmed
       ? Number(trip.confirmed_result_kopecks ?? (Number(trip.final_rate_kopecks || 0) - expenses))
@@ -586,19 +724,25 @@ function renderTripDetail(trip) {
       <div class="content-section-heading">
         <div><p class="section-kicker">Экономика рейса</p><h4 id="tripFinanceTitle">Финансовый итог</h4></div>
       </div>
-      <div class="finance-grid">
+      <div class="finance-grid trip-finance-primary">
         <div><span>Итоговая ставка</span><strong>${escapeHtml(formatRubles(trip.final_rate_kopecks))}</strong></div>
-        <div><span>${confirmed ? "Подтверждённые расходы" : "Расходы"}</span><strong>${completed ? escapeHtml(formatRubles(expenses)) : "Учитываются после завершения"}</strong></div>
-        <div><span>Начислено водителю</span><strong>${confirmed
-          ? escapeHtml(formatRubles(trip.driver_compensation_kopecks || 0))
-          : completed
-            ? `Предварительно ${escapeHtml(formatRubles(trip.estimated_driver_compensation_kopecks || 0))}`
-            : "После завершения рейса"}</strong></div>
+        <div><span>Себестоимость рейса</span><strong>${totalTripCost == null ? "После завершения" : escapeHtml(formatRubles(totalTripCost))}</strong></div>
         <div><span title="Ставка минус расходы рейса и начисления водителю">${confirmed ? "Валовая прибыль рейса" : "Предварительный результат"}</span><strong class="${result != null && result < 0 ? "negative-value" : ""}">${result == null ? "Не рассчитан" : escapeHtml(formatRubles(result))}</strong></div>
-        <div><span>${completed && Number(trip.receivable_kopecks || 0) < 0 ? "Переплата заказчика" : "Долг заказчика"}</span><strong>${completed ? escapeHtml(receivableText(Number(trip.receivable_kopecks || 0))) : "Возникнет после завершения"}</strong></div>
-        <div><span>Пробег</span><strong>${escapeHtml(distance)}</strong></div>
-        <div><span>Срок оплаты</span><strong>${escapeHtml(paymentDueText(trip))}</strong></div>
       </div>
+      <details class="trip-finance-details">
+        <summary>Показать полный расчёт</summary>
+        <div class="finance-grid">
+          <div><span>${confirmed ? "Подтверждённые расходы" : "Расходы"}</span><strong>${completed ? escapeHtml(formatRubles(expenses)) : "Учитываются после завершения"}</strong></div>
+          <div><span>Начислено водителю</span><strong>${confirmed
+            ? escapeHtml(formatRubles(trip.driver_compensation_kopecks || 0))
+            : completed
+              ? `Предварительно ${escapeHtml(formatRubles(trip.estimated_driver_compensation_kopecks || 0))}`
+              : "После завершения рейса"}</strong></div>
+          <div><span>${completed && Number(trip.receivable_kopecks || 0) < 0 ? "Переплата заказчика" : "Долг заказчика"}</span><strong>${completed ? escapeHtml(receivableText(Number(trip.receivable_kopecks || 0))) : "Возникнет после завершения"}</strong></div>
+          <div><span>Пробег</span><strong>${escapeHtml(distance)}</strong></div>
+          <div><span>Срок оплаты</span><strong>${escapeHtml(paymentDueText(trip))}</strong></div>
+        </div>
+      </details>
     </section>
     ${tripExpenseBreakdownMarkup(trip)}
     ${odometerRiskWarningMarkup(trip)}
@@ -1053,14 +1197,19 @@ function renderExpenseCategories() {
 function renderReport() {
   if (!report) return;
   const totals = report.totals;
+  const totalCosts = Number(totals.tripExpensesKopecks || 0)
+    + Number(totals.driverCompensationKopecks || 0)
+    + Number(totals.fixedCostsKopecks || 0)
+    + Number(totals.oneOffExpensesKopecks || 0);
   els.reportRevenue.textContent = formatRubles(totals.revenueKopecks);
+  els.reportTotalCosts.textContent = formatRubles(totalCosts);
   els.reportTripExpenses.textContent = formatRubles(totals.tripExpensesKopecks);
   els.reportDriverCompensation.textContent = formatRubles(totals.driverCompensationKopecks);
   els.reportFixedCosts.textContent = formatRubles(totals.fixedCostsKopecks);
   els.reportOneOffExpenses.textContent = formatRubles(totals.oneOffExpensesKopecks);
   els.reportProfit.textContent = formatRubles(totals.profitKopecks);
   els.reportProfit.classList.toggle("negative-value", totals.profitKopecks < 0);
-  els.reportNote.textContent = `${report.period.from} — ${report.period.to} · рейсов: ${totals.tripCount} · пробег: ${totals.distanceKm} км · себестоимость: ${totals.costPerKmKopecks == null ? "—" : `${formatRubles(totals.costPerKmKopecks)}/км`} · получено от заказчиков: ${formatRubles(totals.receivedKopecks)} · ${receivableText(totals.receivableKopecks)}`
+  els.reportNote.textContent = `${report.period.from} — ${report.period.to} · рейсов: ${totals.tripCount} · пробег: ${totals.distanceKm} км · себестоимость: ${totals.costPerKmKopecks == null ? "—" : `${formatRubles(totals.costPerKmKopecks)}/км`} · получено от заказчиков: ${formatRubles(totals.receivedKopecks)} · расчёты с заказчиками: ${receivableText(totals.receivableKopecks)}`
     + (totals.unallocatedCompanyExpensesKopecks
       ? ` · общие расходы компании: ${formatRubles(totals.unallocatedCompanyExpensesKopecks)}`
       : "")
@@ -1069,24 +1218,28 @@ function renderReport() {
   els.reportRigList.innerHTML = "";
   report.rigs.forEach((rig) => {
     const card = document.createElement("article");
-    card.className = "trip-office-card report-rig-card";
+    card.className = "trip-office-card report-rig-card report-rig-row";
     card.innerHTML = `
       <div class="trip-card-heading">
-        <div><p class="section-kicker">Сцепка</p><h3>${escapeHtml(rig.rigName)}</h3></div>
-        <strong class="${rig.profitKopecks < 0 ? "negative-value" : ""}">${escapeHtml(formatRubles(rig.profitKopecks))}</strong>
+        <div><p class="section-kicker">Сцепка</p><h3>${escapeHtml(rig.rigName)}</h3><span>${rig.tripCount} рейс(а) · ${rig.distanceKm} км</span></div>
+        <div class="report-rig-result"><span>${rig.profitKopecks < 0 ? "Убыток" : "Прибыль"}</span><strong class="${rig.profitKopecks < 0 ? "negative-value" : ""}">${escapeHtml(formatRubles(Math.abs(rig.profitKopecks)))}</strong></div>
       </div>
-      <div class="finance-grid">
-        <div><span>Рейсов</span><strong>${rig.tripCount}</strong></div>
-        <div><span>Пробег</span><strong>${rig.distanceKm} км</strong></div>
+      <div class="finance-grid report-rig-key-metrics">
         <div><span>Выручка</span><strong>${escapeHtml(formatRubles(rig.revenueKopecks))}</strong></div>
-        <div><span>Расходы рейсов</span><strong>${escapeHtml(formatRubles(rig.tripExpensesKopecks))}</strong></div>
-        <div><span>Начислено водителю</span><strong>${escapeHtml(formatRubles(rig.driverCompensationKopecks))}</strong></div>
-        <div><span>Постоянные расходы</span><strong>${escapeHtml(formatRubles(rig.fixedCostsKopecks))}</strong></div>
-        <div><span>Разовые расходы</span><strong>${escapeHtml(formatRubles(rig.oneOffExpensesKopecks))}</strong></div>
+        <div><span>Все затраты</span><strong>${escapeHtml(formatRubles(Number(rig.tripExpensesKopecks || 0) + Number(rig.driverCompensationKopecks || 0) + Number(rig.fixedCostsKopecks || 0) + Number(rig.oneOffExpensesKopecks || 0)))}</strong></div>
         <div><span>Себестоимость километра</span><strong>${rig.costPerKmKopecks == null ? "—" : `${escapeHtml(formatRubles(rig.costPerKmKopecks))}/км`}</strong></div>
-        <div><span>Выручка на километр</span><strong>${rig.revenuePerKmKopecks == null ? "—" : `${escapeHtml(formatRubles(rig.revenuePerKmKopecks))}/км`}</strong></div>
         <div><span>Получено</span><strong>${escapeHtml(formatRubles(rig.receivedKopecks))}</strong></div>
       </div>
+      <details class="report-rig-details">
+        <summary>Подробный состав</summary>
+        <div class="finance-grid">
+          <div><span>Расходы рейсов</span><strong>${escapeHtml(formatRubles(rig.tripExpensesKopecks))}</strong></div>
+          <div><span>Начислено водителю</span><strong>${escapeHtml(formatRubles(rig.driverCompensationKopecks))}</strong></div>
+          <div><span>Постоянные расходы</span><strong>${escapeHtml(formatRubles(rig.fixedCostsKopecks))}</strong></div>
+          <div><span>Разовые расходы</span><strong>${escapeHtml(formatRubles(rig.oneOffExpensesKopecks))}</strong></div>
+          <div><span>Выручка на километр</span><strong>${rig.revenuePerKmKopecks == null ? "—" : `${escapeHtml(formatRubles(rig.revenuePerKmKopecks))}/км`}</strong></div>
+        </div>
+      </details>
       ${rig.preliminaryTripCount ? `<p class="form-warning">${rig.preliminaryTripCount} рейс(а) ещё ожидают окончательной проверки — итог предварительный.</p>` : ""}
     `;
     els.reportRigList.append(card);
@@ -1124,12 +1277,26 @@ async function loadReport() {
 function renderCustomers() {
   const debtByCustomer = new Map();
   state.trips.filter(isCompletedTrip).forEach((trip) => debtByCustomer.set(trip.customer_id, (debtByCustomer.get(trip.customer_id) || 0) + Number(trip.receivable_kopecks || 0)));
-  const customers = state.customers.filter((customer) => !els.debtorsOnly.checked || (debtByCustomer.get(customer.id) || 0) > 0);
+  const query = normalizeSearch(els.customerSearch?.value);
+  const customers = state.customers.filter((customer) => {
+    if (els.debtorsOnly.checked && (debtByCustomer.get(customer.id) || 0) <= 0) return false;
+    if (!query) return true;
+    const contacts = contactsForCustomer(customer.id);
+    return normalizeSearch([
+      customer.short_name, customer.full_name, customer.inn,
+      ...contacts.flatMap((contact) => [contact.fullName, contact.position, ...contact.phones.map((phone) => phone.phone)])
+    ].filter(Boolean).join(" ")).includes(query);
+  });
   els.customerList.innerHTML = "";
   els.noCustomers.classList.toggle("visible", customers.length === 0);
   const noCustomersMessage = els.noCustomers.querySelector("p");
   const noCustomersAction = els.noCustomers.querySelector("button");
-  if (els.debtorsOnly.checked && state.customers.length > 0 && customers.length === 0) {
+  if (query && state.customers.length > 0 && customers.length === 0) {
+    noCustomersMessage.textContent = "По вашему запросу заказчики не найдены.";
+    noCustomersAction.textContent = "Очистить поиск";
+    noCustomersAction.dataset.customerEmptyAction = "clear-search";
+    delete noCustomersAction.dataset.emptyAction;
+  } else if (els.debtorsOnly.checked && state.customers.length > 0 && customers.length === 0) {
     noCustomersMessage.textContent = "Сейчас нет заказчиков с задолженностью.";
     noCustomersAction.textContent = "Показать всех заказчиков";
     noCustomersAction.dataset.customerEmptyAction = "show-all";
@@ -1211,17 +1378,24 @@ function renderDriverSettlements() {
         </div>
         <strong class="${settlement.netBalanceKopecks === 0 ? "" : "negative-value"}">${escapeHtml(balance)}</strong>
       </div>
-      <div class="finance-grid">
-        <div><span>Зарплата начислена / выплачена</span><strong>${escapeHtml(formatRubles(settlement.salaryAccruedKopecks))} / ${escapeHtml(formatRubles(settlement.salaryPaidKopecks))}</strong></div>
-        <div><span>Остаток зарплаты</span><strong>${escapeHtml(categoryBalanceText(settlement.salaryBalanceKopecks))}</strong></div>
-        <div><span>Суточные начислены / выплачены</span><strong>${escapeHtml(formatRubles(settlement.dailyAccruedKopecks))} / ${escapeHtml(formatRubles(settlement.dailyPaidKopecks))}</strong></div>
-        <div><span>Остаток суточных</span><strong>${escapeHtml(categoryBalanceText(settlement.dailyBalanceKopecks))}</strong></div>
-        <div><span>Аванс выдан / подтверждён</span><strong>${escapeHtml(formatRubles(settlement.advanceIssuedKopecks))} / ${escapeHtml(formatRubles(settlement.advanceSpentKopecks))}</strong></div>
-        <div><span>Остаток аванса у водителя</span><strong>${escapeHtml(formatRubles(settlement.advanceBalanceKopecks))}</strong></div>
-        <div><span>Личные расходы / компенсировано</span><strong>${escapeHtml(formatRubles(settlement.personalExpensesKopecks))} / ${escapeHtml(formatRubles(settlement.reimbursementPaidKopecks))}</strong></div>
-        <div><span>Компенсация к выплате</span><strong>${escapeHtml(categoryBalanceText(settlement.reimbursementBalanceKopecks))}</strong></div>
+      <div class="settlement-key-metrics">
+        <div><span>Зарплата к выплате</span><strong>${escapeHtml(categoryBalanceText(settlement.salaryBalanceKopecks))}</strong></div>
+        <div><span>Суточные к выплате</span><strong>${escapeHtml(categoryBalanceText(settlement.dailyBalanceKopecks))}</strong></div>
+        <div><span>Осталось денег на расходы</span><strong>${escapeHtml(formatRubles(settlement.advanceBalanceKopecks))}</strong></div>
       </div>
-      <p class="meta-line">Суточные начислены по: ${escapeHtml(formatDate(settlement.dailyAccruedThrough))} · оплачены по: ${escapeHtml(formatDate(settlement.dailyPaidThrough))}${settlement.dailyProvisionalAccruedKopecks > 0 ? ` · в начислении предварительно ${escapeHtml(formatRubles(settlement.dailyProvisionalAccruedKopecks))} по незакрытым рейсам` : ""}</p>
+      <details class="settlement-details">
+        <summary>Показать расчёт баланса</summary>
+        <div class="finance-grid">
+          <div><span>Зарплата: начислено / выплачено</span><strong>${escapeHtml(formatRubles(settlement.salaryAccruedKopecks))} / ${escapeHtml(formatRubles(settlement.salaryPaidKopecks))}</strong></div>
+          <div><span>Суточные: начислено / выплачено</span><strong>${escapeHtml(formatRubles(settlement.dailyAccruedKopecks))} / ${escapeHtml(formatRubles(settlement.dailyPaidKopecks))}</strong></div>
+          <div><span>Выдано на расходы</span><strong>${escapeHtml(formatRubles(settlement.advanceIssuedKopecks))}</strong></div>
+          <div><span>Подтверждено чеками</span><strong>${escapeHtml(formatRubles(settlement.advanceSpentKopecks))}</strong></div>
+          <div><span>Личные расходы водителя</span><strong>${escapeHtml(formatRubles(settlement.personalExpensesKopecks))}</strong></div>
+          <div><span>Уже компенсировано</span><strong>${escapeHtml(formatRubles(settlement.reimbursementPaidKopecks))}</strong></div>
+          <div><span>Компенсация к выплате</span><strong>${escapeHtml(categoryBalanceText(settlement.reimbursementBalanceKopecks))}</strong></div>
+        </div>
+        <p class="meta-line">Суточные начислены по: ${escapeHtml(formatDate(settlement.dailyAccruedThrough))} · оплачены по: ${escapeHtml(formatDate(settlement.dailyPaidThrough))}${settlement.dailyProvisionalAccruedKopecks > 0 ? ` · в начислении предварительно ${escapeHtml(formatRubles(settlement.dailyProvisionalAccruedKopecks))} по незакрытым рейсам` : ""}</p>
+      </details>
       ${settlement.unconfirmedExpensesKopecks > 0 ? `<p class="form-warning">На проверке расходов водителя: ${escapeHtml(formatRubles(settlement.unconfirmedExpensesKopecks))}. Они ещё не вошли в баланс.</p>` : ""}
     `;
     els.driverSettlementList.append(card);
@@ -1274,7 +1448,7 @@ function allocationLabel(type) {
   return {
     salary: "зарплата",
     daily: "суточные",
-    expense_advance: "аванс на расходы",
+    expense_advance: "деньги на расходы",
     expense_reimbursement: "компенсация расхода"
   }[type] || type;
 }
@@ -1453,6 +1627,7 @@ function updateTripAvailability() {
 function organizeOfficeInformationArchitecture() {
   const settlementsPanel = document.querySelector("[data-office-panel='settlements']");
   const fleetPanel = document.querySelector("[data-office-panel='fleet']");
+  const expensesPanel = document.querySelector("[data-office-panel='expenses']");
   const settingsPeopleForms = document.querySelector("#settingsPeopleForms");
   const settingsAccountList = document.querySelector("#settingsAccountList");
   const settingsExpenseCategories = document.querySelector("#settingsExpenseCategories");
@@ -1460,6 +1635,17 @@ function organizeOfficeInformationArchitecture() {
   settingsPeopleForms?.append(els.officeUserForm, els.driverForm);
   settingsAccountList?.append(els.accountList);
   settingsExpenseCategories?.append(els.expenseCategoryForm);
+
+  if (expensesPanel) {
+    const companyExpenseGrid = els.companyExpenseForm?.closest(".analytics-expense-grid");
+    const companyExpenseHeading = companyExpenseGrid?.previousElementSibling;
+    expensesPanel.replaceChildren(
+      createSectionHeading("Контроль документов и затрат", "Расходы"),
+      els.pendingExpenseQueue,
+      companyExpenseHeading,
+      companyExpenseGrid
+    );
+  }
 
   if (settlementsPanel) {
     const intro = settlementsPanel.querySelector(".portal-section-heading");
@@ -1564,6 +1750,30 @@ function bindEvents() {
   els.logoutButton.addEventListener("click", logout);
   els.changePasswordButton.addEventListener("click", changeOwnPassword);
   els.createTripShortcut.addEventListener("click", () => switchTab("new-trip"));
+  els.quickCreateTripButton.addEventListener("click", () => switchTab("new-trip"));
+  els.quickRecordPaymentButton.addEventListener("click", () => switchTab("customers"));
+  els.quickDriverTransferButton.addEventListener("click", () => navigateOffice("drivers/transfers"));
+  els.quickAddExpenseButton.addEventListener("click", () => {
+    switchTab("expenses");
+    scrollIntoViewRespectingMotion(els.companyExpenseForm);
+  });
+  els.globalSearch.addEventListener("input", renderGlobalSearchResults);
+  els.globalSearch.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") return;
+    const result = els.globalSearchResults.querySelector("[data-global-result]");
+    if (result) navigateOffice(result.dataset.globalResult);
+  });
+  document.querySelectorAll("[data-global-route]").forEach((button) => {
+    button.addEventListener("click", () => navigateOffice(button.dataset.globalRoute));
+  });
+  document.querySelectorAll("[data-workspace-filter]").forEach((button) => {
+    button.addEventListener("click", () => {
+      workspaceFilter = button.dataset.workspaceFilter;
+      document.querySelectorAll("[data-workspace-filter]").forEach((item) => item.classList.toggle("active", item === button));
+      renderOfficeWorkspace();
+    });
+  });
+  els.workspaceAllTasksButton.addEventListener("click", () => switchTab("expenses"));
   els.cancelNewTripButton.addEventListener("click", () => switchTab("dashboard"));
   els.closeTripDetailButton.addEventListener("click", () => navigateOffice("trips"));
   els.openAllTripsButton.addEventListener("click", () => switchTab("dashboard"));
@@ -1586,15 +1796,23 @@ function bindEvents() {
   });
   document.addEventListener("click", (event) => {
     const routeButton = event.target.closest("[data-office-route]");
-    if (routeButton) navigateOffice(routeButton.dataset.officeRoute);
+    if (routeButton) {
+      navigateOffice(routeButton.dataset.officeRoute);
+      routeButton.closest(".office-mobile-more")?.removeAttribute("open");
+    }
     const emptyAction = event.target.closest("[data-empty-action]");
     if (emptyAction) switchTab(emptyAction.dataset.emptyAction);
-    const customerEmptyAction = event.target.closest("[data-customer-empty-action='show-all']");
-    if (customerEmptyAction) {
-      if (customerEmptyAction.dataset.customerEmptyAction === "show-all") {
+    const anyCustomerEmptyAction = event.target.closest("[data-customer-empty-action]");
+    if (anyCustomerEmptyAction) {
+      if (anyCustomerEmptyAction.dataset.customerEmptyAction === "show-all") {
         els.debtorsOnly.checked = false;
         renderCustomers();
+      } else if (anyCustomerEmptyAction.dataset.customerEmptyAction === "clear-search") {
+        els.customerSearch.value = "";
+        renderCustomers();
       } else {
+        const disclosure = document.querySelector("#customerCreateDisclosure");
+        if (disclosure) disclosure.open = true;
         document.querySelector("#customerShortName")?.focus();
         scrollIntoViewRespectingMotion(els.customerForm);
       }
@@ -1602,7 +1820,9 @@ function bindEvents() {
   });
   window.addEventListener("hashchange", () => applyOfficeRoute());
   els.tripStatusFilter.addEventListener("change", renderTrips);
+  els.tripSearch.addEventListener("input", renderTrips);
   els.debtorsOnly.addEventListener("change", renderCustomers);
+  els.customerSearch.addEventListener("input", renderCustomers);
   els.reportForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     await submitForm(els.buildReportButton, loadReport);
@@ -2410,6 +2630,7 @@ function switchTab(name) {
   const routes = {
     overview: "overview",
     dashboard: "trips",
+    expenses: "expenses",
     settlements: "drivers/balances",
     fleet: "fleet/rigs",
     analytics: "profitability",
@@ -2421,6 +2642,7 @@ function switchTab(name) {
 }
 
 function navigateOffice(route, { replace = false } = {}) {
+  closeGlobalSearch();
   const hash = `#${route}`;
   if (location.hash === hash) {
     applyOfficeRoute({ scroll: true });
@@ -2446,6 +2668,7 @@ function applyOfficeRoute({ scroll = true, replaceInvalid = false } = {}) {
   const panelBySection = {
     overview: "overview",
     trips: "dashboard",
+    expenses: "expenses",
     drivers: "settlements",
     fleet: "fleet",
     profitability: "analytics",
@@ -2515,6 +2738,7 @@ function applyOfficeRoute({ scroll = true, replaceInvalid = false } = {}) {
     else button.removeAttribute("aria-current");
   });
   if (panelName === "dashboard") renderTrips();
+  if (panelName === "expenses") els.pendingExpenseQueue.hidden = false;
   document.title = `${officeRouteTitle(route)} · ANB`;
   if (scroll) {
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -2542,6 +2766,7 @@ function officeRouteTitle(route) {
   return {
     overview: "Обзор",
     trips: "Рейсы",
+    expenses: "Расходы",
     "drivers/balances": "Баланс водителей",
     "drivers/transfers": "Переводы водителям",
     "drivers/rates": "Ставки водителей",
@@ -2603,6 +2828,10 @@ function customerDebtText(amountKopecks) {
   if (amount > 0) return `Долг ${formatRubles(amount)}`;
   if (amount < 0) return `Переплата ${formatRubles(Math.abs(amount))}`;
   return "Долга нет";
+}
+
+function normalizeSearch(value) {
+  return String(value || "").trim().toLocaleLowerCase("ru-RU");
 }
 
 function sum(rows, field) {
@@ -2754,7 +2983,7 @@ function expensePaymentMethodLabel(method) {
 function expensePaymentSourceLabel(source) {
   return {
     driver_personal: "Личные деньги водителя",
-    driver_advance: "Выданный аванс",
+    driver_advance: "Деньги на расходы от офиса",
     company_card: "Карта компании",
     company_fuel_card: "Топливная карта компании",
     company_cash: "Наличные компании"

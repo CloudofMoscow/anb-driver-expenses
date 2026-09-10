@@ -143,9 +143,10 @@ test("version 1 database upgrades without data loss and backfills confirmed trip
     database = migrated;
     assert.deepEqual(
       migrated.prepare("SELECT version FROM schema_migrations ORDER BY version").all().map((row) => row.version),
-      [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+      [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
     );
     const settings = migrated.prepare("SELECT * FROM organization_compensation_settings WHERE organization_id = 'org-legacy'").get();
+    assert.equal(migrated.prepare("SELECT COUNT(*) AS count FROM driver_location_updates").get().count, 0);
     assert.equal(settings.default_salary_rate_kopecks_per_km, 1200);
     assert.equal(settings.default_daily_rate_kopecks, 150000);
     const accruals = migrated.prepare(`

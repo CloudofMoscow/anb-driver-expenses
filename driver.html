@@ -4,13 +4,14 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="theme-color" content="#ffffff">
+    <script src="./theme.js?v=75"></script>
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="ANB Водитель">
     <title>Кабинет водителя · ANB</title>
-    <link rel="manifest" href="./manifest.webmanifest?v=55">
+    <link rel="manifest" href="./manifest.webmanifest?v=75">
     <link rel="icon" href="./icon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="./apple-touch-icon.png">
-    <link rel="stylesheet" href="./styles.css?v=55">
+    <link rel="stylesheet" href="./styles.css?v=75">
   </head>
   <body class="driver-page">
     <div class="app-shell driver-shell portal-shell">
@@ -28,6 +29,7 @@
             <summary>Настройки</summary>
             <div>
               <button class="header-button push-button" id="pushNotificationsButton" type="button" hidden>Включить уведомления</button>
+              <button class="header-button" type="button" data-theme-toggle>Тёмная тема</button>
               <button class="header-button" id="changePasswordButton" type="button">Сменить пароль</button>
               <button class="header-button" id="clearDeviceButton" type="button" title="Удалить локальные данные с телефона">Очистить данные</button>
               <button class="header-button" id="logoutButton" type="button">Выйти</button>
@@ -38,13 +40,46 @@
 
       <main>
         <nav class="tabs driver-tabs" aria-label="Разделы" role="tablist">
-          <button class="tab-button active" id="driverTabTrip" type="button" role="tab" aria-controls="driverPanelTrip" aria-selected="true" tabindex="0" data-driver-tab="trip">Рейс</button>
-          <button class="tab-button" id="driverTabExpense" type="button" role="tab" aria-controls="driverPanelExpense" aria-selected="false" tabindex="-1" data-driver-tab="expense">Расход</button>
-          <button class="tab-button" id="driverTabJournal" type="button" role="tab" aria-controls="driverPanelJournal" aria-selected="false" tabindex="-1" data-driver-tab="journal">История</button>
+          <button class="tab-button active" id="driverTabHome" type="button" role="tab" aria-controls="driverPanelHome" aria-selected="true" tabindex="0" data-driver-tab="home">Главная</button>
+          <button class="tab-button" id="driverTabTrip" type="button" role="tab" aria-controls="driverPanelTrip" aria-selected="false" tabindex="-1" data-driver-tab="trip">Рейс</button>
+          <button class="tab-button" id="driverTabExpense" type="button" role="tab" aria-controls="driverPanelExpense" aria-selected="false" tabindex="-1" data-driver-tab="expense" hidden>Новый расход</button>
+          <button class="tab-button" id="driverTabJournal" type="button" role="tab" aria-controls="driverPanelJournal" aria-selected="false" tabindex="-1" data-driver-tab="journal">Расходы</button>
+          <button class="tab-button" id="driverTabMessages" type="button" role="tab" aria-label="Сообщения" aria-controls="driverPanelMessages" aria-selected="false" tabindex="-1" data-driver-tab="messages">Сообщения</button>
           <button class="tab-button" id="driverTabMoney" type="button" role="tab" aria-controls="driverPanelMoney" aria-selected="false" tabindex="-1" data-driver-tab="money" hidden>Деньги</button>
         </nav>
 
-        <section class="tab-panel active" id="driverPanelTrip" role="tabpanel" aria-labelledby="driverTabTrip" data-driver-panel="trip">
+        <section class="tab-panel active driver-home" id="driverPanelHome" role="tabpanel" aria-labelledby="driverTabHome" data-driver-panel="home">
+          <article class="driver-route-hero" id="driverRouteHero">
+            <div class="driver-route-heading">
+              <div><span id="homeTripNumber">Рейс не назначен</span><strong id="homeTripRoute">Ожидаем данные от офиса</strong></div>
+              <span class="status-badge" id="homeTripStatus">Нет рейса</span>
+            </div>
+            <div class="route-timeline">
+              <div class="route-step current" id="homeLoadingStep"><span class="route-dot"></span><div><strong>Погрузка</strong><span id="homeLoadingPlace">—</span><small id="homeLoadingTime">Дата пока не указана</small></div></div>
+              <div class="route-step" id="homeProgressStep"><span class="route-dot"></span><div><strong id="homeProgressTitle">Ожидает начала</strong><span id="driverDistanceStatus">Расстояние по дорогам пока не рассчитано</span><small id="driverLocationStatus">Геопозиция ещё не отправлена</small><button type="button" id="refreshDriverLocationButton">Обновить геопозицию</button></div></div>
+              <div class="route-step" id="homeUnloadingStep"><span class="route-dot"></span><div><strong>Выгрузка</strong><span id="homeUnloadingPlace">—</span><small>Фактическое время укажете при завершении</small></div></div>
+            </div>
+          </article>
+
+          <button class="primary-action driver-home-expense" id="driverHomeExpenseButton" type="button">Добавить расход</button>
+          <div class="driver-home-actions">
+            <button type="button" id="driverHomeReceiptButton">Фото чека</button>
+            <button type="button" id="driverHomeTripButton">Открыть рейс</button>
+            <button type="button" id="driverHomeMessageButton">Сообщения офиса</button>
+          </div>
+          <article class="driver-sync-card">
+            <div><strong id="driverSyncHeadline">Все данные сохранены</strong><span id="driverSyncDetail">Нет черновиков для отправки</span></div>
+            <button type="button" id="driverOpenMessagesButton">Открыть</button>
+          </article>
+          <article class="driver-message-preview" id="driverMessagePreview" hidden>
+            <div><span>Сообщение офиса</span><small id="driverMessageDate"></small></div>
+            <strong id="driverMessageTitle"></strong>
+            <p id="driverMessageText"></p>
+            <button type="button" id="driverAllMessagesButton">Все сообщения</button>
+          </article>
+        </section>
+
+        <section class="tab-panel" id="driverPanelTrip" role="tabpanel" aria-labelledby="driverTabTrip" data-driver-panel="trip">
           <div class="driver-section-title">
             <h2>Активный рейс</h2>
           </div>
@@ -192,7 +227,7 @@
               <label>
                 <span>Чьи деньги</span>
                 <select id="expensePaymentSource" required>
-                  <option value="driver_advance">Выданный аванс</option>
+                  <option value="driver_advance">Деньги на расходы от офиса</option>
                   <option value="driver_personal">Личные деньги водителя</option>
                   <option value="company_card">Карта компании</option>
                   <option value="company_fuel_card">Топливная карта компании</option>
@@ -245,6 +280,11 @@
           <p class="empty-state" id="noExpenses">Расходов по выбранному фильтру нет.</p>
         </section>
 
+        <section class="tab-panel" id="driverPanelMessages" role="tabpanel" aria-labelledby="driverTabMessages" data-driver-panel="messages">
+          <div class="portal-section-heading"><div><p class="section-kicker">Информация от офиса</p><h2>Сообщения офиса</h2></div></div>
+          <div id="driverMessagesContent"></div>
+        </section>
+
         <section class="tab-panel" id="driverPanelMoney" role="tabpanel" aria-labelledby="driverTabMoney" data-driver-panel="money" hidden>
           <article class="money-balance-card" id="driverMoneyCard">
             <p class="section-kicker">Текущий взаиморасчёт</p>
@@ -285,6 +325,6 @@
       </form>
     </dialog>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="./driver.js?v=55" type="module"></script>
+    <script src="./driver.js?v=75" type="module"></script>
   </body>
 </html>

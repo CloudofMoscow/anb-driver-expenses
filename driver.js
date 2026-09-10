@@ -29,6 +29,32 @@ const els = {
   logoutButton: document.querySelector("#logoutButton"),
   changePasswordButton: document.querySelector("#changePasswordButton"),
   clearDeviceButton: document.querySelector("#clearDeviceButton"),
+  homeTripNumber: document.querySelector("#homeTripNumber"),
+  homeTripRoute: document.querySelector("#homeTripRoute"),
+  homeTripStatus: document.querySelector("#homeTripStatus"),
+  homeLoadingPlace: document.querySelector("#homeLoadingPlace"),
+  homeLoadingTime: document.querySelector("#homeLoadingTime"),
+  homeProgressTitle: document.querySelector("#homeProgressTitle"),
+  homeUnloadingPlace: document.querySelector("#homeUnloadingPlace"),
+  homeLoadingStep: document.querySelector("#homeLoadingStep"),
+  homeProgressStep: document.querySelector("#homeProgressStep"),
+  homeUnloadingStep: document.querySelector("#homeUnloadingStep"),
+  driverLocationStatus: document.querySelector("#driverLocationStatus"),
+  driverDistanceStatus: document.querySelector("#driverDistanceStatus"),
+  refreshDriverLocationButton: document.querySelector("#refreshDriverLocationButton"),
+  homeExpenseButton: document.querySelector("#driverHomeExpenseButton"),
+  homeReceiptButton: document.querySelector("#driverHomeReceiptButton"),
+  homeTripButton: document.querySelector("#driverHomeTripButton"),
+  homeMessageButton: document.querySelector("#driverHomeMessageButton"),
+  syncHeadline: document.querySelector("#driverSyncHeadline"),
+  syncDetail: document.querySelector("#driverSyncDetail"),
+  openMessagesButton: document.querySelector("#driverOpenMessagesButton"),
+  messagePreview: document.querySelector("#driverMessagePreview"),
+  messageDate: document.querySelector("#driverMessageDate"),
+  messageTitle: document.querySelector("#driverMessageTitle"),
+  messageText: document.querySelector("#driverMessageText"),
+  allMessagesButton: document.querySelector("#driverAllMessagesButton"),
+  messagesContent: document.querySelector("#driverMessagesContent"),
   activeTripSummary: document.querySelector("#activeTripSummary"),
   tripExpenseTotal: document.querySelector("#tripExpenseTotal"),
   tripExpenseCount: document.querySelector("#tripExpenseCount"),
@@ -101,7 +127,8 @@ let state = {
   user: null, trips: [], expenses: [], notifications: [], expenseCategories: [],
   capabilities: { compensationVisible: false },
   settlement: null, transfers: [], accruals: [],
-  offline: false, pendingCount: 0, pendingOperations: [], syncing: false
+  offline: false, pendingCount: 0, pendingOperations: [], syncing: false,
+  locationRefreshing: false
 };
 let selectedTripId = "";
 let driverActionResolver = null;
@@ -130,6 +157,7 @@ async function init() {
   els.driverName.textContent = compactDriverName(user.fullName);
   els.driverName.title = user.fullName;
   setDefaultDateTimes();
+  organizeDriverInformationArchitecture();
   bindEvents();
   await loadData();
   applyDriverRoute({ scroll: false, replaceInvalid: true });
@@ -143,6 +171,8 @@ async function init() {
     });
   }
   window.setInterval(refreshWhenVisible, 30_000);
+  window.setInterval(refreshDriverLocationSilently, 5 * 60_000);
+  await refreshDriverLocationSilently();
 }
 
 async function refreshWhenVisible() {
@@ -201,6 +231,7 @@ function render() {
   renderNotifications();
   renderTripList();
   renderTrip(trip);
+  renderDriverHome(trip);
   renderExpenses();
   if (driverCompensationVisible()) renderMoney();
   const tripExpenses = trip ? state.expenses.filter((expense) => expense.trip_id === trip.id && expense.status !== "rejected") : [];
@@ -216,6 +247,67 @@ function render() {
     : trip?.status === "in_progress"
     ? `${tripRouteText(trip)}${state.offline ? " · без сети сохраним на телефоне" : ""}`
     : "Расход можно добавить после начала рейса.";
+}
+
+function organizeDriverInformationArchitecture() {
+  if (!els.messagesContent) return;
+  els.messagesContent.append(els.syncQueueSection, els.notificationSection);
+}
+
+function renderDriverHome(trip) {
+  const latestNotification = (state.notifications || [])[0];
+  const active = trip?.status === "in_progress";
+  const completed = ["pending_review", "needs_explanation", "confirmed", "closed"].includes(trip?.status);
+  els.homeLoadingStep.className = `route-step ${active || completed ? "complete" : "current"}`;
+  els.homeProgressStep.className = `route-step ${active ? "current" : completed ? "complete" : ""}`;
+  els.homeUnloadingStep.className = `route-step ${completed ? "current" : ""}`;
+  els.homeTripNumber.textContent = trip?.number ? `Рейс ${trip.number}` : "Рейс не назначен";
+  els.homeTripRoute.textContent = trip ? tripRouteText(trip) : "Ожидаем данные от офиса";
+  els.homeTripStatus.textContent = trip ? statusLabel(trip.status) : "Нет рейса";
+  els.homeTripStatus.dataset.status = trip?.status || "assigned";
+  els.homeLoadingPlace.textContent = trip?.loading_address || "—";
+  els.homeLoadingTime.textContent = trip?.loaded_at
+    ? formatDateTime(trip.loaded_at)
+    : trip?.planned_loading_date ? formatDate(trip.planned_loading_date) : "Дата пока не указана";
+  els.homeUnloadingPlace.textContent = trip?.unloading_address || "—";
+  els.homeProgressTitle.textContent = active ? "В пути" : trip ? statusLabel(trip.status) : "Ожидает назначения";
+  els.driverDistanceStatus.textContent = active
+    ? "Расстояние по дорогам пока не рассчитано"
+    : "Расчёт начнётся после старта рейса";
+  if (trip?.latest_location_captured_at) {
+    const accuracy = trip.latest_location_accuracy_m == null
+      ? ""
+      : ` · точность около ${Math.round(Number(trip.latest_location_accuracy_m))} м`;
+    els.driverLocationStatus.textContent = `Геопозиция обновлена ${formatDateTime(trip.latest_location_captured_at)}${accuracy}`;
+  } else {
+    els.driverLocationStatus.textContent = active
+      ? "Геопозиция ещё не отправлена"
+      : "Геопозиция доступна во время рейса";
+  }
+  els.refreshDriverLocationButton.disabled = !active || state.offline || state.locationRefreshing;
+  els.refreshDriverLocationButton.textContent = state.locationRefreshing ? "Обновляем…" : "Обновить геопозицию";
+  els.homeExpenseButton.disabled = !trip;
+  if (!trip) {
+    els.homeExpenseButton.textContent = "Рейс ещё не назначен";
+  } else if (["assigned", "awaiting_loading"].includes(trip.status)) {
+    els.homeExpenseButton.textContent = "Начать рейс";
+  } else if (active) {
+    els.homeExpenseButton.textContent = "Добавить расход";
+  } else {
+    els.homeExpenseButton.textContent = "Посмотреть рейс";
+  }
+  els.homeReceiptButton.disabled = !active;
+  els.homeTripButton.disabled = !trip;
+  els.syncHeadline.textContent = state.pendingCount ? `Ожидает отправки: ${state.pendingCount}` : "Все данные сохранены";
+  els.syncDetail.textContent = state.offline
+    ? "Нет связи — новые записи сохранятся на телефоне"
+    : state.pendingCount ? "Отправим автоматически после восстановления связи" : "Черновиков для отправки нет";
+  els.messagePreview.hidden = !latestNotification;
+  if (latestNotification) {
+    els.messageDate.textContent = formatDateTime(latestNotification.created_at);
+    els.messageTitle.textContent = latestNotification.title;
+    els.messageText.textContent = latestNotification.message;
+  }
 }
 
 function renderDriverShortcuts(trip) {
@@ -730,7 +822,7 @@ function driverAllocationLabel(type) {
   return {
     salary: "зарплата",
     daily: "суточные",
-    expense_advance: "аванс на расходы",
+    expense_advance: "деньги на расходы",
     expense_reimbursement: "компенсация расхода"
   }[type] || type;
 }
@@ -739,6 +831,21 @@ function bindEvents() {
   els.logoutButton.addEventListener("click", handleLogout);
   els.changePasswordButton.addEventListener("click", changeOwnPassword);
   els.clearDeviceButton.addEventListener("click", clearThisDevice);
+  els.homeExpenseButton.addEventListener("click", () => {
+    const trip = selectedTrip();
+    if (!trip) return;
+    if (trip.status === "in_progress") {
+      openExpenseForm(false);
+      return;
+    }
+    switchTab("trip");
+  });
+  els.homeReceiptButton.addEventListener("click", () => openExpenseForm(true));
+  els.homeTripButton.addEventListener("click", () => switchTab("trip"));
+  els.homeMessageButton.addEventListener("click", () => switchTab("messages"));
+  els.refreshDriverLocationButton.addEventListener("click", () => refreshDriverLocation({ announce: true }));
+  els.openMessagesButton.addEventListener("click", () => switchTab("messages"));
+  els.allMessagesButton.addEventListener("click", () => switchTab("messages"));
   els.tabs.forEach((tab) => {
     tab.addEventListener("click", () => switchTab(tab.dataset.driverTab));
     tab.addEventListener("keydown", handleDriverTabKeydown);
@@ -899,6 +1006,16 @@ function bindEvents() {
   });
 }
 
+function openExpenseForm(openCamera) {
+  if (selectedTrip()?.status !== "in_progress") {
+    showToast(els.toast, "Расход можно добавить после начала рейса", true);
+    return;
+  }
+  switchTab("expense");
+  if (openCamera) els.expenseReceipt.click();
+  else els.expenseAmount.focus();
+}
+
 function applyQueuedOperations(operations) {
   state.trips = state.trips.map((trip) => ({ ...trip, _pendingSync: null }));
   state.expenses = state.expenses.filter((expense) => expense.status !== "queued");
@@ -1051,11 +1168,11 @@ function navigateDriver(route, { replace = false } = {}) {
 
 function applyDriverRoute({ scroll = true, replaceInvalid = false } = {}) {
   const hadHash = Boolean(location.hash);
-  let route = decodeURIComponent(location.hash.replace(/^#\/?/, "")) || "trip";
-  const panelByRoute = { trip: "trip", expense: "expense", history: "journal", money: "money" };
+  let route = decodeURIComponent(location.hash.replace(/^#\/?/, "")) || "home";
+  const panelByRoute = { home: "home", trip: "trip", expense: "expense", history: "journal", messages: "messages", money: "money" };
   if (!panelByRoute[route] || (route === "money" && !driverCompensationVisible())) {
-    route = "trip";
-    history.replaceState(null, "", `${location.pathname}${location.search}#trip`);
+    route = "home";
+    history.replaceState(null, "", `${location.pathname}${location.search}#home`);
   } else if (!hadHash && replaceInvalid) {
     history.replaceState(null, "", `${location.pathname}${location.search}#${route}`);
   }
@@ -1071,7 +1188,7 @@ function applyDriverRoute({ scroll = true, replaceInvalid = false } = {}) {
     panel.classList.toggle("active", active);
     panel.hidden = !active || (panel.dataset.driverPanel === "money" && !driverCompensationVisible());
   });
-  document.title = `${target === "trip" ? "Рейс" : target === "expense" ? "Новый расход" : target === "journal" ? "История расходов" : "Деньги"} · ANB`;
+  document.title = `${target === "home" ? "Главная" : target === "trip" ? "Рейс" : target === "expense" ? "Новый расход" : target === "journal" ? "Расходы" : target === "messages" ? "Сообщения" : "Деньги"} · ANB`;
   if (scroll) window.scrollTo({ top: 0, behavior: reducedMotionEnabled() ? "auto" : "smooth" });
 }
 
@@ -1186,16 +1303,72 @@ function localDateTimeToIso(value) {
   return date.toISOString();
 }
 
-function currentLocation() {
+async function refreshDriverLocationSilently() {
+  if (document.visibilityState !== "visible" || !navigator.onLine || !activeTrip()) return;
+  if (!await locationPermissionAlreadyGranted()) return;
+  await refreshDriverLocation({ announce: false });
+}
+
+async function locationPermissionAlreadyGranted() {
+  if (!navigator.permissions?.query) return false;
+  try {
+    const permission = await navigator.permissions.query({ name: "geolocation" });
+    return permission.state === "granted";
+  } catch {
+    return false;
+  }
+}
+
+async function refreshDriverLocation({ announce = false } = {}) {
+  const trip = activeTrip();
+  if (!trip || state.offline || state.locationRefreshing) return;
+  state.locationRefreshing = true;
+  renderDriverHome(selectedTrip());
+  try {
+    const location = await currentLocation({ notify: announce });
+    if (location.latitude == null || location.longitude == null) {
+      if (announce) showToast(els.toast, "Не удалось получить геопозицию. Проверьте разрешение телефона.", true);
+      return;
+    }
+    const result = await api("/api/driver/location", {
+      method: "POST",
+      body: {
+        tripId: trip.id,
+        latitude: location.latitude,
+        longitude: location.longitude,
+        accuracy: location.accuracy,
+        capturedAt: location.capturedAt
+      }
+    });
+    trip.latest_latitude = result.location.latitude;
+    trip.latest_longitude = result.location.longitude;
+    trip.latest_location_accuracy_m = result.location.accuracy_m;
+    trip.latest_location_captured_at = result.location.captured_at;
+    writeCache(driverCacheSnapshot());
+    if (announce) showToast(els.toast, "Геопозиция обновлена");
+  } catch (error) {
+    if (announce) showToast(els.toast, error.message, true);
+  } finally {
+    state.locationRefreshing = false;
+    renderDriverHome(selectedTrip());
+  }
+}
+
+function currentLocation({ notify = true } = {}) {
   if (!navigator.geolocation) {
-    notifyGeolocationUnavailable();
+    if (notify) notifyGeolocationUnavailable();
     return Promise.resolve({});
   }
   return new Promise((resolve) => {
     navigator.geolocation.getCurrentPosition(
-      (position) => resolve({ latitude: position.coords.latitude, longitude: position.coords.longitude }),
+      (position) => resolve({
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+        accuracy: position.coords.accuracy,
+        capturedAt: new Date(position.timestamp || Date.now()).toISOString()
+      }),
       () => {
-        notifyGeolocationUnavailable();
+        if (notify) notifyGeolocationUnavailable();
         resolve({});
       },
       { enableHighAccuracy: false, timeout: 5000, maximumAge: 60000 }
@@ -1390,7 +1563,7 @@ function expenseStatusLabel(status) {
 function expensePaymentSourceLabel(source) {
   return {
     driver_personal: "Личные деньги",
-    driver_advance: "Выданный аванс",
+    driver_advance: "Деньги на расходы от офиса",
     company_card: "Карта компании",
     company_fuel_card: "Топливная карта компании",
     company_cash: "Наличные компании"

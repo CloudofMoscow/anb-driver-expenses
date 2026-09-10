@@ -52,6 +52,7 @@ const publicFiles = new Set([
   "office.html",
   "login.html",
   "styles.css",
+  "theme.js",
   "driver.js",
   "office.js",
   "login.js",
@@ -202,6 +203,11 @@ async function handleApi(context) {
       user,
       context.driverCompensationVisible
     ));
+    return;
+  }
+
+  if (method === "POST" && path === "/api/driver/location") {
+    await saveDriverLocation({ ...context, user });
     return;
   }
 
@@ -3171,6 +3177,49 @@ function daysBetween(from, to) {
   return daysBetweenDates(dateAtUtc(from), dateAtUtc(to));
 }
 
+async function saveDriverLocation({ request, response, database, user }) {
+  const body = await readJson(request);
+  const trip = database.prepare(`
+    SELECT id, tractor_id FROM trips
+    WHERE id = ? AND driver_id = ? AND organization_id = ? AND status = 'in_progress'
+  `).get(requiredText(body.tripId, "Рейс", 100), user.id, user.organization_id);
+  if (!trip) throw new HttpError(409, "Геопозицию можно отправлять только для активного рейса", "NO_ACTIVE_TRIP");
+
+  const latitude = optionalCoordinate(body.latitude, -90, 90);
+  const longitude = optionalCoordinate(body.longitude, -180, 180);
+  if (latitude == null || longitude == null) {
+    throw new HttpError(400, "Координаты не переданы", "VALIDATION_ERROR");
+  }
+  const accuracy = optionalCoordinate(body.accuracy, 0, 100000);
+  const capturedAt = requiredDateTime(body.capturedAt || nowIso(), "Время геопозиции");
+  const id = entityId("loc");
+  const createdAt = nowIso();
+  database.prepare(`
+    INSERT INTO driver_location_updates(
+      id, organization_id, trip_id, driver_id, tractor_id,
+      latitude, longitude, accuracy_m, captured_at, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    id, user.organization_id, trip.id, user.id, trip.tractor_id,
+    latitude, longitude, accuracy, capturedAt, createdAt
+  );
+  database.prepare(`
+    DELETE FROM driver_location_updates
+    WHERE organization_id = ? AND captured_at < datetime('now', '-180 days')
+  `).run(user.organization_id);
+  sendJson(response, 201, {
+    location: {
+      id,
+      trip_id: trip.id,
+      latitude,
+      longitude,
+      accuracy_m: accuracy,
+      captured_at: capturedAt
+    },
+    routing: { status: "not_configured", remainingDistanceKm: null }
+  });
+}
+
 function driverBootstrap(database, user, driverCompensationVisible = false) {
   const trips = database.prepare(`${driverTripSelectSql()} ORDER BY t.created_at DESC`).all(user.id, user.organization_id);
   for (const trip of trips) addTripStops(database, trip);
@@ -3724,6 +3773,10 @@ function officeTripSelectSql() {
       (SELECT entered_value_km FROM odometer_readings o WHERE o.trip_id = t.id AND o.reading_type = 'end') AS end_odometer_km,
       (SELECT risk_flags_json FROM odometer_readings o WHERE o.trip_id = t.id AND o.reading_type = 'start') AS start_odometer_risk_flags_json,
       (SELECT risk_flags_json FROM odometer_readings o WHERE o.trip_id = t.id AND o.reading_type = 'end') AS end_odometer_risk_flags_json,
+      (SELECT l.latitude FROM driver_location_updates l WHERE l.trip_id = t.id ORDER BY l.captured_at DESC LIMIT 1) AS latest_latitude,
+      (SELECT l.longitude FROM driver_location_updates l WHERE l.trip_id = t.id ORDER BY l.captured_at DESC LIMIT 1) AS latest_longitude,
+      (SELECT l.accuracy_m FROM driver_location_updates l WHERE l.trip_id = t.id ORDER BY l.captured_at DESC LIMIT 1) AS latest_location_accuracy_m,
+      (SELECT l.captured_at FROM driver_location_updates l WHERE l.trip_id = t.id ORDER BY l.captured_at DESC LIMIT 1) AS latest_location_captured_at,
       (SELECT COUNT(*) FROM trip_documents d WHERE d.trip_id = t.id) AS document_count,
       (SELECT d.attachment_id FROM trip_documents d WHERE d.trip_id = t.id ORDER BY d.version_number DESC LIMIT 1) AS latest_document_attachment_id
     FROM trips t
@@ -3747,7 +3800,11 @@ function driverTripSelectSql() {
       tr.brand || ' ' || tr.model || ' · ' || tr.plate_number AS tractor_label,
       tl.brand || ' ' || tl.model || ' · ' || tl.plate_number AS trailer_label,
       (SELECT entered_value_km FROM odometer_readings o WHERE o.trip_id = t.id AND o.reading_type = 'start') AS start_odometer_km,
-      (SELECT entered_value_km FROM odometer_readings o WHERE o.trip_id = t.id AND o.reading_type = 'end') AS end_odometer_km
+      (SELECT entered_value_km FROM odometer_readings o WHERE o.trip_id = t.id AND o.reading_type = 'end') AS end_odometer_km,
+      (SELECT l.latitude FROM driver_location_updates l WHERE l.trip_id = t.id ORDER BY l.captured_at DESC LIMIT 1) AS latest_latitude,
+      (SELECT l.longitude FROM driver_location_updates l WHERE l.trip_id = t.id ORDER BY l.captured_at DESC LIMIT 1) AS latest_longitude,
+      (SELECT l.accuracy_m FROM driver_location_updates l WHERE l.trip_id = t.id ORDER BY l.captured_at DESC LIMIT 1) AS latest_location_accuracy_m,
+      (SELECT l.captured_at FROM driver_location_updates l WHERE l.trip_id = t.id ORDER BY l.captured_at DESC LIMIT 1) AS latest_location_captured_at
     FROM trips t
     JOIN rigs r ON r.id = t.rig_id
     JOIN tractors tr ON tr.id = t.tractor_id

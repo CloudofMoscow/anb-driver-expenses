@@ -19,7 +19,8 @@ const migrations = [
   [11, fileURLToPath(new URL("./migrations/011_global_login_uniqueness.sql", import.meta.url))],
   [12, fileURLToPath(new URL("./migrations/012_financial_idempotency.sql", import.meta.url))],
   [13, fileURLToPath(new URL("./migrations/013_expense_review_events.sql", import.meta.url))],
-  [14, fileURLToPath(new URL("./migrations/014_push_notifications.sql", import.meta.url))]
+  [14, fileURLToPath(new URL("./migrations/014_push_notifications.sql", import.meta.url))],
+  [15, fileURLToPath(new URL("./migrations/015_driver_locations.sql", import.meta.url))]
 ];
 
 const defaultExpenseCategories = [

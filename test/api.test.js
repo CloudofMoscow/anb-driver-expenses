@@ -561,7 +561,27 @@ describe("ANB core API vertical slice", { concurrency: false }, () => {
     assert.equal(start.data.trip.status, "in_progress");
     assert.equal(start.data.trip.start_odometer_km, 100_000);
 
+    const locationUpdate = await jsonRequest("/api/driver/location", {
+      method: "POST",
+      cookie: driverCookie,
+      body: {
+        tripId: state.tripId,
+        latitude: 56.8389,
+        longitude: 60.6057,
+        accuracy: 18,
+        capturedAt: "2026-07-10T10:15:00+03:00"
+      }
+    });
+    assert.equal(locationUpdate.status, 201);
+    assert.equal(locationUpdate.data.location.trip_id, state.tripId);
+    assert.equal(locationUpdate.data.location.accuracy_m, 18);
+    assert.equal(locationUpdate.data.routing.remainingDistanceKm, null);
+    const driverAfterLocation = await request("/api/driver/bootstrap", { cookie: driverCookie });
+    assert.equal(driverAfterLocation.data.trips[0].latest_latitude, 56.8389);
+    assert.ok(driverAfterLocation.data.trips[0].latest_location_captured_at);
+
     const officeAfterStart = await request("/api/office/bootstrap", { cookie: officeCookie });
+    assert.equal(officeAfterStart.data.trips[0].latest_longitude, 60.6057);
     const startedNotification = officeAfterStart.data.notifications
       .find((notification) => notification.notification_type === "trip_started_by_driver");
     assert.ok(startedNotification);
@@ -1692,7 +1712,7 @@ describe("ANB core API vertical slice", { concurrency: false }, () => {
     const trip = officeView.data.trips.find((item) => item.id === state.secondTripId);
     const startFlags = JSON.parse(trip.start_odometer_risk_flags_json);
     const endFlags = JSON.parse(trip.end_odometer_risk_flags_json);
-    assert.equal(startFlags[0].code, "odometer_below_previous_end");
+    assert.ok(startFlags.some((flag) => flag.code === "odometer_below_previous_end"));
     assert.ok(endFlags.some((flag) => flag.code === "unusually_large_trip_distance"));
     assert.ok(endFlags.some((flag) => flag.code === "impossible_average_speed"));
 
