@@ -1,19 +1,28 @@
 const MAX_ATTACHMENT_BYTES = 12 * 1024 * 1024;
+const responseEtags = new Map();
 
 export async function api(path, options = {}) {
+  const { skipUnchanged = false, ...fetchOptions } = options;
   const headers = new Headers(options.headers || {});
+  if (skipUnchanged && responseEtags.has(path)) headers.set("If-None-Match", responseEtags.get(path));
   let body = options.body;
   if (body != null && !(body instanceof Blob) && !(body instanceof ArrayBuffer)) {
     headers.set("Content-Type", "application/json");
     body = JSON.stringify(body);
   }
 
-  const response = await fetch(path, {
-    ...options,
-    headers,
-    body,
-    credentials: "same-origin"
-  });
+  let response;
+  try {
+    response = await fetch(path, {
+      ...fetchOptions,
+      headers,
+      body,
+      credentials: "same-origin"
+    });
+  } catch (cause) {
+    throw new Error("Нет связи с сервером. Повторите отправку после восстановления связи", { cause });
+  }
+  if (skipUnchanged && response.status === 304) return null;
   const contentType = response.headers.get("content-type") || "";
   const payload = contentType.includes("application/json")
     ? await response.json()
@@ -28,6 +37,7 @@ export async function api(path, options = {}) {
     error.code = payload?.code || "REQUEST_FAILED";
     throw error;
   }
+  if (response.headers.get("ETag")) responseEtags.set(path, response.headers.get("ETag"));
   return payload;
 }
 

@@ -5,14 +5,17 @@
   --ink: #0d0d0d;
   --muted: #656971;
   --line: #d5d9df;
-  --line-strong: #949ba5;
+  --line-strong: #89919c;
   --black: #000000;
   --graphite: #2b2b2b;
   --accent: #d71920;
   --accent-strong: #b61117;
   --accent-soft: #fff0f0;
   --red: #d71920;
+  /* Keep solid action fills distinct from readable text on themed surfaces. */
   --danger: #b61117;
+  --danger-ink: #b61117;
+  --accent-ink: #b61117;
   --shadow: 0 10px 28px rgba(0, 0, 0, 0.08);
   --focus: #a70f16;
   --success: #237b3d;
@@ -178,7 +181,7 @@ h1 {
   border: 0;
   border-radius: 6px;
   background: transparent;
-  color: #504d47;
+  color: var(--muted);
   font-weight: 800;
   transition: background-color 160ms ease, color 160ms ease, transform 160ms ease;
 }
@@ -330,7 +333,7 @@ h1 {
   min-height: 34px;
   border: 1px solid var(--line);
   border-radius: 7px;
-  background: #fff;
+  background: var(--surface);
   color: var(--ink);
   padding: 7px 9px;
   font-size: 0.8rem;
@@ -401,7 +404,7 @@ textarea {
   min-height: 46px;
   border: 1px solid var(--line);
   border-radius: 7px;
-  background: #fff;
+  background: var(--surface);
   color: var(--ink);
   outline: none;
   padding: 11px 12px;
@@ -445,7 +448,7 @@ textarea:focus {
 }
 
 .file-field strong {
-  color: #9f1f1f;
+  color: var(--danger-ink);
   overflow-wrap: anywhere;
 }
 
@@ -458,7 +461,7 @@ textarea:focus {
   padding: 12px;
   border: 1px solid rgba(228, 58, 58, 0.24);
   border-radius: 8px;
-  background: #fff7f7;
+  background: var(--accent-soft);
 }
 
 .receipt-preview[hidden] {
@@ -477,7 +480,7 @@ textarea:focus {
   flex: 0 0 auto;
   border: 1px solid rgba(228, 58, 58, 0.22);
   border-radius: 6px;
-  background: #fff;
+  background: var(--surface);
   object-fit: cover;
 }
 
@@ -486,7 +489,7 @@ textarea:focus {
 }
 
 .receipt-preview strong {
-  color: #8d1d1d;
+  color: var(--danger-ink);
   font-size: 0.92rem;
   line-height: 1.25;
 }
@@ -523,14 +526,14 @@ textarea:focus {
 }
 
 .secondary-action {
-  border: 1px solid #d6d3ca;
-  background: #f2f1ec;
-  color: #161616;
+  border: 1px solid var(--line);
+  background: var(--surface-soft);
+  color: var(--ink);
 }
 
 .ghost-action {
   border: 1px solid var(--line);
-  background: #fff;
+  background: var(--surface);
   color: var(--ink);
 }
 
@@ -542,7 +545,7 @@ textarea:focus {
 }
 
 .danger {
-  color: var(--danger);
+  color: var(--danger-ink);
   border-color: rgba(228, 58, 58, 0.32);
 }
 
@@ -615,7 +618,7 @@ textarea:focus {
 
 .expense-amount {
   flex: 0 0 auto;
-  color: #000;
+  color: var(--ink);
   font-weight: 900;
   text-align: right;
 }
@@ -634,7 +637,7 @@ textarea:focus {
   padding: 5px 8px;
   border-radius: 999px;
   background: var(--accent-soft);
-  color: #8f2020;
+  color: var(--danger-ink);
   font-size: 0.78rem;
   font-weight: 800;
 }
@@ -653,7 +656,7 @@ textarea:focus {
   padding: 9px 10px;
   border-left: 3px solid var(--accent);
   background: var(--accent-soft);
-  color: #74151a;
+  color: var(--danger-ink);
   font-size: 0.84rem;
   line-height: 1.4;
 }
@@ -668,7 +671,7 @@ textarea:focus {
   min-height: 38px;
   border-radius: 6px;
   border: 1px solid var(--line);
-  background: #fff;
+  background: var(--surface);
   color: var(--ink);
   padding: 8px 10px;
   font-size: 0.88rem;
@@ -676,7 +679,7 @@ textarea:focus {
 }
 
 .card-actions .delete-button {
-  color: var(--danger);
+  color: var(--danger-ink);
 }
 
 .empty-state {
@@ -704,7 +707,7 @@ textarea:focus {
   border: 1px solid rgba(228, 58, 58, 0.28);
   border-radius: 8px;
   background: var(--accent-soft);
-  color: #711818;
+  color: var(--danger-ink);
   font-size: 0.9rem;
   font-weight: 800;
   line-height: 1.35;
@@ -733,7 +736,7 @@ textarea:focus {
   padding: 12px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: #fff;
+  background: var(--surface);
 }
 
 .device-panel span {
@@ -759,7 +762,7 @@ textarea:focus {
   min-height: 48px;
   cursor: pointer;
   padding: 14px;
-  color: #8d1d1d;
+  color: var(--accent-ink);
   font-weight: 900;
 }
 
@@ -771,7 +774,7 @@ textarea:focus {
   display: grid;
   place-items: center;
   border: 1px solid var(--line);
-  background: #fff;
+  background: var(--surface);
   color: var(--ink);
   text-align: center;
 }
@@ -802,7 +805,7 @@ textarea:focus {
   max-height: calc(100dvh - 28px);
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: #fff;
+  background: var(--surface);
   color: var(--ink);
   padding: 0;
   box-shadow: 0 24px 70px rgba(0, 0, 0, 0.28);
@@ -832,7 +835,7 @@ textarea:focus {
   flex: 0 0 auto;
   border: 1px solid var(--line);
   border-radius: 7px;
-  background: #fff;
+  background: var(--surface);
   color: var(--ink);
   font-size: 1.4rem;
   line-height: 1;
@@ -1146,7 +1149,7 @@ textarea:focus {
   max-height: calc(100dvh - 28px);
   border: 1px solid var(--line);
   border-radius: 10px;
-  background: #fff;
+  background: var(--surface);
   color: var(--ink);
   padding: 0;
   box-shadow: 0 24px 70px rgba(0, 0, 0, 0.3);
@@ -1247,7 +1250,7 @@ textarea:focus {
   margin-bottom: 18px;
   border: 1px solid rgba(228, 58, 58, 0.24);
   border-radius: 9px;
-  background: #fffafa;
+  background: var(--surface);
   padding: 14px;
 }
 
@@ -1259,7 +1262,7 @@ textarea:focus {
   border: 1px solid var(--line);
   border-left: 4px solid var(--accent);
   border-radius: 8px;
-  background: #fff;
+  background: var(--surface);
   padding: 12px;
 }
 
@@ -1291,7 +1294,7 @@ textarea:focus {
 
 .trip-choice.active {
   border-left-color: var(--accent);
-  background: #fffafa;
+  background: var(--accent-soft);
 }
 
 .trip-choice strong {
@@ -1342,7 +1345,7 @@ textarea:focus {
 .status-badge[data-status="pending_review"],
 .status-badge[data-status="needs_explanation"] {
   background: var(--accent-soft);
-  color: #8f2020;
+  color: var(--danger-ink);
 }
 
 .status-badge[data-status="confirmed"],
@@ -1422,7 +1425,7 @@ textarea:focus {
 .portal-card-actions .button-link {
   min-height: 38px;
   border-color: var(--line);
-  background: #fff;
+  background: var(--surface);
   color: var(--ink);
 }
 
@@ -1462,7 +1465,7 @@ textarea:focus {
   align-items: center;
   border: 1px solid var(--line);
   border-radius: 7px;
-  background: #fff;
+  background: var(--surface);
   padding: 10px;
 }
 
@@ -1504,7 +1507,7 @@ textarea:focus {
 }
 
 .contact-list a {
-  color: var(--accent-strong);
+  color: var(--accent-ink);
   font-weight: 800;
   text-decoration: none;
 }
@@ -1513,7 +1516,7 @@ textarea:focus {
   margin: 0;
   border-left: 3px solid var(--accent);
   background: var(--accent-soft);
-  color: #74151a;
+  color: var(--danger-ink);
   padding: 10px 12px;
   font-size: 0.86rem;
   line-height: 1.4;
@@ -1612,7 +1615,7 @@ textarea:focus {
   min-height: 28px;
   border: 0;
   border-radius: 999px;
-  background: #fff;
+  background: var(--surface);
   padding: 4px 8px;
   font-size: 0.75rem;
 }
@@ -1694,11 +1697,11 @@ textarea:focus {
 }
 
 .negative-value {
-  color: var(--danger) !important;
+  color: var(--danger-ink) !important;
 }
 
 .overdue-note {
-  color: var(--danger);
+  color: var(--danger-ink);
   font-size: 0.76rem;
   line-height: 1.4;
 }
@@ -1945,7 +1948,7 @@ body.office-page {
     max(18px, var(--safe-bottom))
     max(14px, var(--safe-left));
   border-right: 1px solid var(--line);
-  background: #fff;
+  background: var(--surface);
   color: var(--ink);
 }
 
@@ -1993,7 +1996,7 @@ body.office-page {
   position: relative;
   min-height: 50px;
   border-radius: 8px;
-  color: #25282d;
+  color: var(--ink);
   padding: 12px 18px;
   text-align: left;
   font-size: 0.96rem;
@@ -2010,8 +2013,8 @@ body.office-page {
 }
 
 .office-sidebar .office-tabs .tab-button.active {
-  background: #fff3f3;
-  color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-ink);
   box-shadow: none;
 }
 
@@ -2036,8 +2039,8 @@ body.office-page {
 .office-sidebar .status-pill {
   min-height: 44px;
   border-color: var(--line);
-  background: #fff;
-  color: #40444b;
+  background: var(--surface);
+  color: var(--muted);
   text-align: center;
 }
 
@@ -2081,7 +2084,7 @@ body.office-page {
 
 .office-content-topbar p {
   margin: 0;
-  color: #5d626a;
+  color: var(--muted);
   font-size: 0.95rem;
 }
 
@@ -2178,7 +2181,7 @@ body.office-page {
 .overview-card {
   border: 1px solid var(--line);
   border-radius: var(--radius-card);
-  background: #fff;
+  background: var(--surface);
   box-shadow: var(--shadow-soft);
 }
 
@@ -2295,7 +2298,7 @@ body.office-page {
 
 .quick-action-card .transfer-shortcut {
   border-color: var(--accent);
-  background: #fff;
+  background: var(--surface);
   color: var(--accent);
 }
 
@@ -2384,15 +2387,15 @@ body.driver-page {
 .driver-header-actions .status-pill {
   border: 0;
   background: transparent;
-  color: #268640;
+  color: var(--success);
   text-align: right;
 }
 
 .driver-header-actions .push-button {
   min-height: 44px;
   border-color: var(--line);
-  background: #fff;
-  color: #4f545c;
+  background: var(--surface);
+  color: var(--muted);
 }
 
 .driver-header-actions .push-button[data-push-state="enabled"] {
@@ -2414,8 +2417,8 @@ body.driver-page {
   list-style: none;
   border: 1px solid var(--line);
   border-radius: 9px;
-  background: #fff;
-  color: #555a63;
+  background: var(--surface);
+  color: var(--muted);
   padding: 9px 12px;
   font-size: 0.82rem;
   font-weight: 750;
@@ -2436,7 +2439,7 @@ body.driver-page {
   padding: 10px;
   border: 1px solid var(--line);
   border-radius: 10px;
-  background: #fff;
+  background: var(--surface);
   box-shadow: 0 18px 44px rgba(0, 0, 0, 0.16);
 }
 
@@ -2444,8 +2447,8 @@ body.driver-page {
   width: 100%;
   min-height: 44px;
   border-color: var(--line);
-  background: #fff;
-  color: #333840;
+  background: var(--surface);
+  color: var(--ink);
 }
 
 .office-account-menu {
@@ -2455,8 +2458,8 @@ body.driver-page {
 .office-account-menu summary {
   width: 100%;
   border-color: var(--line);
-  background: #fff;
-  color: #40444b;
+  background: var(--surface);
+  color: var(--muted);
 }
 
 .office-account-menu > div {
@@ -2480,7 +2483,7 @@ body.driver-page {
   margin: 0;
   padding: clamp(20px, 4vw, 30px);
   border-radius: 14px;
-  background: #fff;
+  background: var(--surface);
   box-shadow: none;
 }
 
@@ -2538,7 +2541,7 @@ body.driver-page {
   min-height: 54px;
   border-color: var(--line);
   border-radius: 11px;
-  background: #fff;
+  background: var(--surface);
 }
 
 .driver-summary {
@@ -2547,7 +2550,7 @@ body.driver-page {
   margin: 0 0 22px;
   border: 1px solid var(--line);
   border-radius: 12px;
-  background: #fff;
+  background: var(--surface);
 }
 
 .driver-summary .summary-item {
@@ -2575,7 +2578,7 @@ body.driver-page {
   padding: 18px;
   border: 1px solid var(--line);
   border-radius: 12px;
-  background: #fff;
+  background: var(--surface);
 }
 
 .driver-notification-section .portal-section-heading {
@@ -2586,6 +2589,11 @@ body.driver-page {
   border-radius: 10px;
 }
 
+.driver-tabs .tab-button.active {
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+}
+
 .driver-all-trips-title {
   margin-top: 28px;
 }
@@ -2593,7 +2601,7 @@ body.driver-page {
 .driver-shell .trip-choice {
   min-height: 74px;
   border-radius: 11px;
-  background: #fff;
+  background: var(--surface);
   padding: 16px;
   text-align: left;
 }
@@ -2601,7 +2609,7 @@ body.driver-page {
 .driver-shell .expense-form {
   border: 1px solid var(--line);
   border-radius: 14px;
-  background: #fff;
+  background: var(--surface);
   box-shadow: var(--shadow-soft);
 }
 
@@ -2694,7 +2702,7 @@ body.driver-page {
   .office-overview .summary-item {
     min-height: 118px;
     border: 0;
-    background: #fff;
+    background: var(--surface);
     padding: 18px;
   }
 
@@ -2903,8 +2911,8 @@ body.driver-page {
   }
 
   .driver-tabs .tab-button.active {
-    background: #fff3f3;
-    color: var(--accent);
+    background: var(--accent-soft);
+    color: var(--accent-ink);
   }
 
   body.driver-page:has(input:focus, select:focus, textarea:focus) .driver-tabs {
@@ -3105,7 +3113,7 @@ button[aria-busy="true"] {
 .expense-form select,
 .expense-form textarea {
   border-color: var(--line-strong);
-  background: #fff;
+  background: var(--surface);
 }
 
 .portal-form input:hover,
@@ -3164,7 +3172,7 @@ button[aria-busy="true"] {
   overflow-x: auto;
   border: 1px solid var(--line);
   border-radius: 11px;
-  background: #eceff3;
+  background: var(--surface-soft);
   scrollbar-width: thin;
 }
 
@@ -3175,19 +3183,19 @@ button[aria-busy="true"] {
   border: 0;
   border-radius: 8px;
   background: transparent;
-  color: #515761;
+  color: var(--muted);
   font-weight: 700;
 }
 
 .section-switcher button:hover {
-  background: rgba(255, 255, 255, 0.7);
+  background: var(--surface);
 }
 
 .section-switcher button.active,
 .section-switcher button[aria-current="page"] {
-  background: #fff;
+  background: var(--surface);
   color: var(--ink);
-  box-shadow: 0 1px 5px rgba(26, 31, 40, 0.1);
+  box-shadow: inset 0 -2px 0 var(--accent-ink), 0 1px 5px rgba(26, 31, 40, 0.1);
 }
 
 .office-subview {
@@ -3212,7 +3220,7 @@ button[aria-busy="true"] {
   min-height: 46px;
   border: 1px solid var(--line-strong);
   border-radius: 9px;
-  background: #fff;
+  background: var(--surface);
   color: var(--ink);
   padding: 8px 36px 8px 12px;
 }
@@ -3226,7 +3234,7 @@ button[aria-busy="true"] {
   padding: 18px 20px;
   border: 1px solid var(--line);
   border-radius: var(--radius-card);
-  background: #fff;
+  background: var(--surface);
   box-shadow: var(--shadow-soft);
 }
 
@@ -3308,7 +3316,7 @@ button[aria-busy="true"] {
   padding: 12px;
   border: 1px solid var(--line);
   border-radius: 11px;
-  background: rgba(255, 255, 255, 0.96);
+  background: var(--surface);
   box-shadow: 0 12px 32px rgba(30, 35, 44, 0.12);
   backdrop-filter: blur(10px);
 }
@@ -3324,7 +3332,7 @@ button[aria-busy="true"] {
   padding: 24px;
   border: 1px dashed var(--line-strong);
   border-radius: 12px;
-  background: #fff;
+  background: var(--surface);
 }
 
 .empty-state-action p {
@@ -3336,7 +3344,7 @@ button[aria-busy="true"] {
   padding: 9px 14px;
   border: 1px solid var(--accent);
   border-radius: 9px;
-  background: #fff;
+  background: var(--surface);
   color: var(--accent);
   font-weight: 750;
 }
@@ -3377,7 +3385,7 @@ button[aria-busy="true"] {
   min-height: 40px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: #fff;
+  background: var(--surface);
   padding: 7px 10px;
   font-weight: 700;
 }
@@ -3396,7 +3404,7 @@ button[aria-busy="true"] {
   overflow: auto;
   border: 0;
   border-radius: 14px;
-  background: #fff;
+  background: var(--surface);
   color: var(--ink);
   box-shadow: 0 24px 70px rgba(0, 0, 0, 0.28);
 }
@@ -3437,12 +3445,31 @@ button[aria-busy="true"] {
   color: #fff !important;
 }
 
-.form-error {
+.form-error,
+.form-error-summary {
   margin: 0;
   padding: 10px 12px;
   border-left: 4px solid var(--danger);
-  background: #fff1f1;
-  color: #811016;
+  background: var(--accent-soft);
+  color: var(--danger-ink);
+}
+
+.field-error {
+  margin: 4px 0 0;
+  color: var(--danger-ink);
+  font-size: 0.875rem;
+  line-height: 1.45;
+  font-weight: 600;
+}
+
+:is(input, select, textarea)[aria-invalid="true"] {
+  border-color: var(--danger-ink);
+}
+
+.form-error-summary a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
 }
 
 .driver-history-filters {
@@ -3464,7 +3491,7 @@ button[aria-busy="true"] {
   min-height: 46px;
   border: 1px solid var(--line-strong);
   border-radius: 9px;
-  background: #fff;
+  background: var(--surface);
   padding: 8px 34px 8px 12px;
 }
 
@@ -3492,8 +3519,8 @@ button[aria-busy="true"] {
 
 .reversed-record,
 .reversed-entry {
-  background: #f4f5f7;
-  color: #4d535c;
+  background: var(--surface-soft);
+  color: var(--muted);
 }
 
 .toast.toast-error {
@@ -3731,7 +3758,7 @@ button[aria-busy="true"] {
     grid-template-columns: 0.8fr 1.2fr;
     margin: 4px -4px -4px;
     padding: 10px 4px max(4px, var(--safe-bottom));
-    background: #fff;
+    background: var(--surface);
   }
 
   .driver-shell .topbar {
@@ -3859,6 +3886,9 @@ button[aria-busy="true"] {
   --black: #ffffff;
   --graphite: #d9dde3;
   --accent-soft: #3a171a;
+  --accent-ink: #ff7378;
+  --danger-ink: #ff7378;
+  --focus: #ff7378;
   --shadow: 0 12px 30px rgba(0, 0, 0, 0.28);
   --success: #65c57d;
   --warning: #f0a74a;
@@ -3915,8 +3945,16 @@ button[aria-busy="true"] {
 }
 
 [data-theme="dark"] .office-tabs .tab-button.active {
-  color: #ff646a;
-  background: #30191c;
+  color: var(--accent-ink);
+  background: var(--accent-soft);
+}
+
+[data-theme="dark"] :is(.attention-item button, .quick-action-card .transfer-shortcut, .empty-state-action button) {
+  color: var(--accent-ink);
+}
+
+[data-theme="dark"] .driver-shell .trip-choice.active {
+  background: var(--accent-soft);
 }
 
 .auth-theme-toggle {
@@ -3927,6 +3965,11 @@ button[aria-busy="true"] {
   border-radius: 8px;
   color: #c7c7c7;
   background: transparent;
+}
+
+/* Authentication keeps its dark branded card even in the light theme. */
+.auth-card {
+  --focus: #ff7378;
 }
 
 /* Login fields stay light inside the dark authentication card. */
@@ -4222,6 +4265,10 @@ button[aria-busy="true"] {
     border-color: var(--accent-strong);
     background: var(--accent-strong);
   }
+
+  [data-theme="dark"] :is(button, .button-link, summary):not(:disabled):not(.primary-action):hover {
+    color: var(--accent-ink);
+  }
 }
 
 .office-content-topbar {
@@ -4406,7 +4453,7 @@ button[aria-busy="true"] {
 }
 
 .workspace-task[data-tone="urgent"] span {
-  color: var(--danger);
+  color: var(--danger-ink);
 }
 
 .workspace-task[data-tone="later"] span {
@@ -4457,8 +4504,8 @@ button[aria-busy="true"] {
 }
 
 .workspace-control i[data-tone="success"] { background: var(--success); }
-.workspace-control i[data-tone="warning"] { background: #f06b18; }
-.workspace-control i[data-tone="danger"] { background: var(--danger); }
+.workspace-control i[data-tone="warning"] { background: var(--warning); }
+.workspace-control i[data-tone="danger"] { background: var(--danger-ink); }
 .workspace-control b { color: var(--muted); font-size: 0.72rem; }
 .workspace-control span { color: var(--muted); font-size: 0.83rem; }
 .workspace-control strong { font-size: 1.25rem; }
@@ -5347,14 +5394,16 @@ button[aria-busy="true"] {
 
 [data-theme="dark"] :is(
   .text-action,
+  .office-notification-shortcut,
+  .row-open-action,
   .back-link,
   .driver-sync-card button,
   .driver-message-preview button,
   .route-step button,
-  .workspace-task.urgent button,
+  .workspace-task button,
   .workspace-all-action
 ) {
-  color: #ff7378;
+  color: var(--accent-ink);
 }
 
 .driver-account-menu summary,
@@ -5374,10 +5423,6 @@ button[aria-busy="true"] {
   min-height: 44px;
 }
 
-[data-theme="dark"] .negative-value {
-  color: #ff7378;
-}
-
 [data-theme="dark"] :is(
   .section-kicker,
   .office-sidebar .office-tabs .tab-button.active,
@@ -5385,7 +5430,7 @@ button[aria-busy="true"] {
   .office-mobile-more button.active,
   .office-mobile-more button[aria-current="page"]
 ) {
-  color: #ff7378;
+  color: var(--accent-ink);
 }
 
 @media (min-width: 901px) and (max-width: 1240px) {
@@ -5459,7 +5504,7 @@ button[aria-busy="true"] {
   }
 
   .office-mobile-more[open] > summary {
-    color: var(--accent);
+    color: var(--accent-ink);
     background: var(--accent-soft);
   }
 
@@ -5490,7 +5535,7 @@ button[aria-busy="true"] {
 
   .office-mobile-more button.active,
   .office-mobile-more button[aria-current="page"] {
-    color: var(--accent);
+    color: var(--accent-ink);
     background: var(--accent-soft);
   }
 

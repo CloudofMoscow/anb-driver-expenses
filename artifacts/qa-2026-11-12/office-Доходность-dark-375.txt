@@ -1,0 +1,145 @@
+- banner:
+  - img "ANB Group"
+  - heading "ANB Group · демо" [level=1]
+  - paragraph: Кабинет офиса
+  - tablist "Разделы":
+    - tab "Обзор"
+    - tab "Рейсы"
+    - tab "Расходы"
+  - generic "Ещё":
+    - generic: Ещё
+  - generic "Аккаунт"
+- main:
+  - searchbox "Что найти или сделать?"
+  - generic "Быстрый поиск":
+    - button "Рейс"
+    - button "Заказчик"
+    - button "Водитель"
+    - button "Машина"
+  - button "Открыть уведомления": Уведомления
+  - navigation "Быстрые действия":
+    - button "Создать рейс"
+    - button "Записать оплату"
+    - button "Перевести водителю"
+    - button "Добавить расход"
+  - tabpanel "Доходность":
+    - heading "Доходность сцепок за период" [level=2]
+    - paragraph: Выручка считается по завершённым рейсам, отдельно от фактических оплат заказчиков. Постоянные расходы вычитаются за выбранный период.
+    - generic: С даты
+    - textbox "С даты": 2026-09-01
+    - generic: По дату
+    - textbox "По дату": 2026-11-12
+    - generic: Сцепка
+    - combobox "Сцепка":
+      - option "Все сцепки" [selected]
+      - option "MAN TGX · 4 осей"
+      - option "Mercedes-Benz Actros · 5 осей"
+      - option "Scania R500 · 6 осей"
+      - option "Volvo FH · 5 осей"
+      - option "КамАЗ К5 · 4 осей"
+    - button "Рассчитать"
+    - region "Главный результат за период":
+      - generic: Выручка
+      - strong: 990 000 ₽
+      - generic: Все затраты
+      - strong: 2 778 860 ₽
+      - generic: Итог
+      - strong: "-1 788 860 ₽"
+    - generic "Показать состав затрат"
+    - paragraph: "2026-09-01 — 2026-11-12 · рейсов: 2 · пробег: 2630 км · себестоимость: 1 056,60 ₽/км · получено от заказчиков: 400 000 ₽ · расчёты с заказчиками: 590 000 ₽ · общие расходы компании: 6 000 ₽ · предварительных рейсов: 1"
+    - strong: Расходы рейсов
+    - generic: Топливо
+    - strong: 142 500 ₽
+    - generic: Ремонт
+    - strong: 32 000 ₽
+    - generic: Платная дорога
+    - strong: 24 800 ₽
+    - generic: Гостиница
+    - strong: 16 500 ₽
+    - strong: Постоянные расходы
+    - generic: Лизинг сцепки
+    - strong: 2 400 000 ₽
+    - generic: Страховка
+    - strong: 24 000 ₽
+    - strong: Разовые расходы
+    - generic: Шины
+    - strong: 85 000 ₽
+    - generic: Связь и программы
+    - strong: 6 000 ₽
+    - article:
+      - paragraph: Сцепка
+      - heading "MAN TGX · 4 осей" [level=3]
+      - text: 0 рейс(а) · 0 км
+      - generic: Убыток
+      - strong: 456 000 ₽
+      - generic: Выручка
+      - strong: 0 ₽
+      - generic: Все затраты
+      - strong: 456 000 ₽
+      - generic: Себестоимость километра
+      - strong: —
+      - generic: Получено
+      - strong: 0 ₽
+      - generic "Подробный состав"
+    - article:
+      - paragraph: Сцепка
+      - heading "Mercedes-Benz Actros · 5 осей" [level=3]
+      - text: 0 рейс(а) · 0 км
+      - generic: Убыток
+      - strong: 432 000 ₽
+      - generic: Выручка
+      - strong: 0 ₽
+      - generic: Все затраты
+      - strong: 432 000 ₽
+      - generic: Себестоимость километра
+      - strong: —
+      - generic: Получено
+      - strong: 0 ₽
+      - generic "Подробный состав"
+    - article:
+      - paragraph: Сцепка
+      - heading "Scania R500 · 6 осей" [level=3]
+      - text: 1 рейс(а) · 1280 км
+      - generic: Убыток
+      - strong: 154 860 ₽
+      - generic: Выручка
+      - strong: 380 000 ₽
+      - generic: Все затраты
+      - strong: 534 860 ₽
+      - generic: Себестоимость километра
+      - strong: 417,86 ₽/км
+      - generic: Получено
+      - strong: 0 ₽
+      - generic "Подробный состав"
+      - paragraph: 1 рейс(а) ещё ожидают окончательной проверки — итог предварительный.
+    - article:
+      - paragraph: Сцепка
+      - heading "Volvo FH · 5 осей" [level=3]
+      - text: 0 рейс(а) · 0 км
+      - generic: Убыток
+      - strong: 504 000 ₽
+      - generic: Выручка
+      - strong: 0 ₽
+      - generic: Все затраты
+      - strong: 504 000 ₽
+      - generic: Себестоимость километра
+      - strong: —
+      - generic: Получено
+      - strong: 0 ₽
+      - generic "Подробный состав"
+    - article:
+      - paragraph: Сцепка
+      - heading "КамАЗ К5 · 4 осей" [level=3]
+      - text: 1 рейс(а) · 1350 км
+      - generic: Убыток
+      - strong: 236 000 ₽
+      - generic: Выручка
+      - strong: 610 000 ₽
+      - generic: Все затраты
+      - strong: 846 000 ₽
+      - generic: Себестоимость километра
+      - strong: 626,67 ₽/км
+      - generic: Получено
+      - strong: 400 000 ₽
+      - generic "Подробный состав"
+- status: Оплата учтена

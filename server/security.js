@@ -57,9 +57,13 @@ export function parseCookies(header = "") {
     .reduce((cookies, part) => {
       const separator = part.indexOf("=");
       if (separator < 0) return cookies;
-      const key = decodeURIComponent(part.slice(0, separator));
-      const value = decodeURIComponent(part.slice(separator + 1));
-      cookies[key] = value;
+      try {
+        const key = decodeURIComponent(part.slice(0, separator));
+        const value = decodeURIComponent(part.slice(separator + 1));
+        cookies[key] = value;
+      } catch {
+        // Ignore malformed cookies; an invalid session is unauthenticated.
+      }
       return cookies;
     }, {});
 }

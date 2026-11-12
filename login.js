@@ -1,4 +1,4 @@
-import { api, showToast } from "./api-client.js";
+import { api, showToast } from "./api-client.js?v=82";
 
 const form = document.querySelector("#loginForm");
 const button = document.querySelector("#loginButton");

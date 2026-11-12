@@ -1,0 +1,69 @@
+- banner:
+  - img "ANB Group"
+  - heading "ANB Group · демо" [level=1]
+  - paragraph: Кабинет офиса
+  - tablist "Разделы":
+    - tab "Обзор"
+    - tab "Рейсы"
+    - tab "Расходы"
+  - generic "Ещё":
+    - generic: Ещё
+  - generic "Аккаунт"
+- main:
+  - searchbox "Что найти или сделать?"
+  - generic "Быстрый поиск":
+    - button "Рейс"
+    - button "Заказчик"
+    - button "Водитель"
+    - button "Машина"
+  - button "Открыть уведомления": Уведомления
+  - navigation "Быстрые действия":
+    - button "Создать рейс"
+    - button "Записать оплату"
+    - button "Перевести водителю"
+    - button "Добавить расход"
+  - tabpanel "Заказчики":
+    - paragraph: Справочник и оплаты
+    - heading "Все заказчики" [level=2]
+    - generic: Поиск
+    - searchbox "Поиск"
+    - checkbox "Только с долгом"
+    - generic: Только с долгом
+    - article:
+      - heading "Волга Монтаж" [level=3]
+      - paragraph: ИНН 1653456789
+      - strong: Долга нет
+      - generic: Контакты ещё не добавлены
+      - paragraph: Неоплаченных рейсов нет.
+    - article:
+      - heading "Север Проект" [level=3]
+      - paragraph: ИНН 7802345678
+      - strong: Долг 380 000 ₽
+      - generic: Контакты ещё не добавлены
+      - generic "Неоплаченные рейсы":
+        - strong: ANB-0262
+        - generic: 28 ноября 2026 г.
+        - strong: 380 000 ₽
+        - button "Открыть рейс"
+        - button "Записать оплату"
+    - article:
+      - heading "ТрансСтрой" [level=3]
+      - paragraph: ИНН 7701234567
+      - strong: Долг 210 000 ₽
+      - strong: Анна Морозова
+      - generic: Логист
+      - link "+7 900 555-10-11":
+        - /url: tel:+7 900 555-10-11
+      - link "+7 900 555-10-10":
+        - /url: tel:+7 900 555-10-10
+      - generic "Неоплаченные рейсы":
+        - strong: ANB-0261
+        - generic: 14 ноября 2026 г.
+        - strong: 210 000 ₽
+        - button "Открыть рейс"
+        - button "Записать оплату"
+    - generic "Добавить заказчика или контакт"
+    - option "Волга Монтаж" [selected]
+    - option "Север Проект"
+    - option "ТрансСтрой"
+- status: Оплата учтена

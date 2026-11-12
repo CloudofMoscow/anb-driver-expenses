@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { gzipSync } from "node:zlib";
 import { createReadStream, existsSync, mkdirSync, statSync } from "node:fs";
 import { open, readFile, unlink } from "node:fs/promises";
 import { basename, extname, isAbsolute, resolve, sep } from "node:path";
@@ -58,6 +59,8 @@ const publicFiles = new Set([
   "login.js",
   "api-client.js",
   "financial-mutation.js",
+  "form-feedback.js",
+  "ui-state.js",
   "driver-outbox.js",
   "push-notifications.js",
   "manifest.webmanifest",
@@ -79,12 +82,20 @@ export function createApplication({
   pushService = null
 }) {
   mkdirSync(uploadsDirectory, { recursive: true });
+  const revisionNamespace = entityId("revision");
 
   return async function handler(request, response) {
     setSecurityHeaders(response);
-    const url = new URL(request.url || "/", "http://localhost");
-
+    response.anbAcceptsGzip = /(?:^|,)\s*gzip\s*(?:,|$|;)/i.test(request.headers["accept-encoding"] || "")
+      && !/gzip\s*;\s*q=0(?:\.0*)?(?:\s*,|\s*$)/i.test(request.headers["accept-encoding"] || "");
     try {
+      let url;
+      try {
+        url = new URL(request.url || "/", "http://localhost");
+        decodeURIComponent(url.pathname);
+      } catch {
+        throw new HttpError(400, "Некорректный адрес", "INVALID_URL");
+      }
       if (url.pathname.startsWith("/api/")) {
         await handleApi({
           request,
@@ -95,7 +106,8 @@ export function createApplication({
           secureCookies,
           trustProxy,
           driverCompensationVisible,
-          pushService
+          pushService,
+          revisionNamespace
         });
         pushService?.schedule();
         return;
@@ -188,6 +200,7 @@ async function handleApi(context) {
   if (path.startsWith("/api/driver/")) requireRole(user, "driver");
 
   if (method === "GET" && path === "/api/office/bootstrap") {
+    if (bootstrapNotModified(context, user)) return;
     sendJson(response, 200, officeBootstrap(context.database, user));
     return;
   }
@@ -198,6 +211,7 @@ async function handleApi(context) {
   }
 
   if (method === "GET" && path === "/api/driver/bootstrap") {
+    if (bootstrapNotModified(context, user)) return;
     sendJson(response, 200, driverBootstrap(
       context.database,
       user,
@@ -436,6 +450,22 @@ async function handleApi(context) {
   }
 
   throw new HttpError(404, "Метод API не найден", "NOT_FOUND");
+}
+
+function bootstrapNotModified({ database, request, response, url, driverCompensationVisible, revisionNamespace }, user) {
+  // Covers writes on this connection, other SQLite connections, restarts and Moscow day rollover.
+  const revision = database.prepare("SELECT total_changes() AS changes").get().changes;
+  const dataVersion = database.prepare("PRAGMA data_version").get().data_version;
+  const etag = `"${createHash("sha256").update(JSON.stringify([
+    revisionNamespace, revision, dataVersion, moscowDate(nowIso()), user.id,
+    user.organization_id, user.role, driverCompensationVisible, url.pathname
+  ])).digest("hex")}"`;
+  response.setHeader("ETag", etag);
+  response.setHeader("Vary", "Cookie, Accept-Encoding");
+  if (request.headers["if-none-match"] !== etag) return false;
+  response.writeHead(304, { "Cache-Control": "private, no-cache" });
+  response.end();
+  return true;
 }
 
 async function login({ request, response, database, secureCookies, trustProxy }) {
@@ -3072,8 +3102,8 @@ function categoryRows(map) {
     .sort((left, right) => right.amountKopecks - left.amountKopecks || left.category.localeCompare(right.category, "ru"));
 }
 
-function estimatedTripCompensation(database, trip) {
-  const rates = effectiveCompensationRates(database, trip);
+function estimatedTripCompensation(database, trip, rateSettings) {
+  const rates = effectiveCompensationRates(database, trip, rateSettings);
   const distanceKm = trip.start_odometer_km != null && trip.end_odometer_km != null
     ? Math.max(0, Number(trip.end_odometer_km) - Number(trip.start_odometer_km))
     : 0;
@@ -3222,7 +3252,7 @@ async function saveDriverLocation({ request, response, database, user }) {
 
 function driverBootstrap(database, user, driverCompensationVisible = false) {
   const trips = database.prepare(`${driverTripSelectSql()} ORDER BY t.created_at DESC`).all(user.id, user.organization_id);
-  for (const trip of trips) addTripStops(database, trip);
+  addTripsStops(database, trips, user.organization_id, user.id);
   const result = {
     user: publicUser(user),
     capabilities: {
@@ -3461,9 +3491,9 @@ function getDriverCompensationSettings(database, driverId, organizationId) {
   `).get(driverId, organizationId) || null;
 }
 
-function effectiveCompensationRates(database, trip) {
-  const organization = getOrganizationCompensationSettings(database, trip.organization_id);
-  const driver = getDriverCompensationSettings(database, trip.driver_id, trip.organization_id);
+function effectiveCompensationRates(database, trip, rateSettings) {
+  const organization = rateSettings?.organization || getOrganizationCompensationSettings(database, trip.organization_id);
+  const driver = rateSettings ? rateSettings.drivers.get(trip.driver_id) : getDriverCompensationSettings(database, trip.driver_id, trip.organization_id);
   return {
     salaryRateKopecksPerKm: Number(
       trip.salary_rate_override_kopecks_per_km
@@ -3685,10 +3715,26 @@ function getDriverAccruals(database, organizationId, driverId = null) {
 
 function getOfficeTrips(database, organizationId) {
   const trips = database.prepare(`${officeTripSelectSql()} ORDER BY t.created_at DESC`).all(organizationId);
+  const byId = new Map(trips.map((trip) => [trip.id, trip]));
+  for (const trip of trips) { trip.adjustments = []; trip.payments = []; trip.additional_unloading_stops = []; }
+  const rateSettings = {
+    organization: getOrganizationCompensationSettings(database, organizationId),
+    drivers: new Map(database.prepare("SELECT * FROM driver_compensation_settings WHERE organization_id = ?")
+      .all(organizationId).map((row) => [row.driver_id, row]))
+  };
+  for (const row of database.prepare(`SELECT a.* FROM trip_rate_adjustments a
+    JOIN trips t ON t.id = a.trip_id WHERE t.organization_id = ? ORDER BY a.created_at`).all(organizationId)) {
+    byId.get(row.trip_id)?.adjustments.push(row);
+  }
+  for (const row of database.prepare(`SELECT p.*, pa.amount_kopecks AS allocated_kopecks, pa.trip_id AS allocation_trip_id
+    FROM payment_allocations pa JOIN incoming_payments p ON p.id = pa.payment_id
+    JOIN trips t ON t.id = pa.trip_id WHERE t.organization_id = ? ORDER BY p.received_at`).all(organizationId)) {
+    const { allocation_trip_id, ...payment } = row;
+    byId.get(allocation_trip_id)?.payments.push(payment);
+  }
+  addTripsStops(database, trips, organizationId);
   for (const trip of trips) {
-    addEstimatedTripCompensation(database, trip);
-    addTripFinancialHistory(database, trip);
-    addTripStops(database, trip);
+    addEstimatedTripCompensation(database, trip, rateSettings);
   }
   return trips;
 }
@@ -3721,10 +3767,20 @@ function addTripStops(database, trip) {
   `).all(trip.id);
 }
 
-function addEstimatedTripCompensation(database, trip) {
+function addTripsStops(database, trips, organizationId, driverId = null) {
+  const byId = new Map(trips.map((trip) => [trip.id, trip]));
+  for (const trip of trips) trip.additional_unloading_stops = [];
+  const rows = database.prepare(`SELECT s.id, s.trip_id, s.stop_order, s.address, s.is_approximate, s.notes
+    FROM trip_stops s JOIN trips t ON t.id = s.trip_id
+    WHERE t.organization_id = ? ${driverId ? "AND t.driver_id = ?" : ""} ORDER BY s.stop_order`)
+    .all(organizationId, ...(driverId ? [driverId] : []));
+  for (const { trip_id, ...stop } of rows) byId.get(trip_id)?.additional_unloading_stops.push(stop);
+}
+
+function addEstimatedTripCompensation(database, trip, rateSettings) {
   trip.estimated_driver_compensation_kopecks = ["confirmed", "closed"].includes(trip.status)
     ? Number(trip.driver_compensation_kopecks || 0)
-    : estimatedTripCompensation(database, trip);
+    : estimatedTripCompensation(database, trip, rateSettings);
   const today = moscowDate(nowIso());
   trip.days_overdue = trip.payment_due_date
     && Number(trip.receivable_kopecks || 0) > 0
@@ -3924,7 +3980,11 @@ async function readJson(request) {
   const buffer = await readBuffer(request, MAX_JSON_BYTES);
   if (!buffer.length) return {};
   try {
-    return JSON.parse(buffer.toString("utf8"));
+    const value = JSON.parse(buffer.toString("utf8"));
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+      throw new Error("Expected a JSON object");
+    }
+    return value;
   } catch {
     throw new HttpError(400, "Некорректный JSON", "INVALID_JSON");
   }
@@ -3942,7 +4002,12 @@ async function readBuffer(request, maxBytes) {
 }
 
 function sendJson(response, status, payload) {
-  const body = Buffer.from(JSON.stringify(payload));
+  let body = Buffer.from(JSON.stringify(payload));
+  if (body.length > 1024 && response.anbAcceptsGzip) {
+    body = gzipSync(body, { level: 1 });
+    response.setHeader("Content-Encoding", "gzip");
+    response.setHeader("Vary", "Cookie, Accept-Encoding");
+  }
   response.writeHead(status, {
     "Content-Type": "application/json; charset=utf-8",
     "Content-Length": body.length,

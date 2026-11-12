@@ -38,6 +38,7 @@ test("PWA cache-busting references use the active service-worker version", () =>
   assert.ok(activeVersion, "service-worker cache version is missing");
   const sources = [
     worker,
+    ...["login.js", "office.js", "driver.js", "driver-outbox.js", "form-feedback.js"].map((name) => readFileSync(resolve(root, name), "utf8")),
     readFileSync(resolve(root, "login.html"), "utf8"),
     readFileSync(resolve(root, "office.html"), "utf8"),
     readFileSync(resolve(root, "driver.html"), "utf8"),
@@ -47,6 +48,12 @@ test("PWA cache-busting references use the active service-worker version", () =>
     .map((match) => match[1]);
   assert.ok(versions.length > 0, "no versioned PWA assets found");
   assert.deepEqual([...new Set(versions)], [activeVersion]);
+  for (const name of ["login.js", "office.js", "driver.js", "driver-outbox.js", "form-feedback.js"]) {
+    for (const [, imported] of readFileSync(resolve(root, name), "utf8").matchAll(/from "(\.\/[^"\n]+\.js(?:\?v=\d+)?)"/g)) {
+      assert.equal(imported.endsWith(`?v=${activeVersion}`), true, `${name}: ${imported} must bypass stale HTTP module caches`);
+      assert.ok(worker.includes(`"${imported}"`), `${imported} must be available offline`);
+    }
+  }
 });
 
 test("manifest is valid and opens the role-aware login", () => {

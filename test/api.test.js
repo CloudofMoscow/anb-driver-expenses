@@ -188,6 +188,40 @@ describe("ANB core API vertical slice", { concurrency: false }, () => {
     assert.equal(secondOwnerBootstrap.data.officeUsers.length, 2);
   });
 
+  test("malformed JSON, cookie and URL are client errors without internal exception logging", async () => {
+    const internalErrors = [];
+    const originalError = console.error;
+    console.error = (...args) => internalErrors.push(args);
+    try {
+      for (const body of ["null", "[]", "true", "42", '"text"', "{"]) {
+        const result = await request("/api/office/trips", { method: "POST", cookie: officeCookie, body, headers: { "Content-Type": "application/json" } });
+        assert.equal(result.status, 400);
+        assert.equal(result.data.code, "INVALID_JSON");
+      }
+      assert.equal((await request("/api/me", { cookie: "anb_session=%ZZ" })).status, 401);
+      assert.equal((await request("/%ZZ")).status, 400);
+      assert.equal((await request("/api/health")).status, 200);
+      assert.deepEqual(internalErrors, []);
+    } finally { console.error = originalError; }
+  });
+
+  test("bootstrap revalidation is private, invalidates on writes and preserves the full JSON contract with gzip", async () => {
+    const first = await request("/api/office/bootstrap", { cookie: officeCookie });
+    const etag = first.headers.get("etag");
+    assert.ok(etag);
+    const unchanged = await request("/api/office/bootstrap", { cookie: officeCookie, headers: { "If-None-Match": etag } });
+    assert.equal(unchanged.status, 304);
+    assert.equal(unchanged.body.length, 0);
+    assert.equal((await request("/api/office/bootstrap", { headers: { "If-None-Match": etag } })).status, 401);
+    database.prepare("UPDATE organizations SET name = ?").run("ANB Test updated");
+    const updated = await request("/api/office/bootstrap", { cookie: officeCookie, headers: { "If-None-Match": etag } });
+    assert.equal(updated.status, 200);
+    assert.notEqual(updated.headers.get("etag"), etag);
+    const compressed = await request("/api/office/bootstrap", { cookie: officeCookie, headers: { "Accept-Encoding": "gzip" } });
+    assert.equal(compressed.headers.get("content-encoding"), "gzip");
+    assert.deepEqual(compressed.data, updated.data);
+  });
+
   test("office creates the fleet, customer, contact, trip, and private contract", async () => {
     const invalidCalendarDate = await jsonRequest("/api/office/drivers", {
       method: "POST",

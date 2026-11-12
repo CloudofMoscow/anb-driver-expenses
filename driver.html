@@ -4,14 +4,14 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="theme-color" content="#ffffff">
-    <script src="./theme.js?v=75"></script>
+    <script src="./theme.js?v=82"></script>
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="ANB Водитель">
     <title>Кабинет водителя · ANB</title>
-    <link rel="manifest" href="./manifest.webmanifest?v=75">
+    <link rel="manifest" href="./manifest.webmanifest?v=82">
     <link rel="icon" href="./icon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="./apple-touch-icon.png">
-    <link rel="stylesheet" href="./styles.css?v=75">
+    <link rel="stylesheet" href="./styles.css?v=82">
   </head>
   <body class="driver-page">
     <div class="app-shell driver-shell portal-shell">
@@ -112,7 +112,7 @@
             </form>
 
             <form class="portal-form action-form" id="completeTripForm" hidden>
-              <h3>Завершить рейс после разгрузки</h3>
+              <h3 id="completeTripHeading" tabindex="-1">Завершение рейса</h3>
               <label>
                 <span>Фактические дата и время разгрузки</span>
                 <input id="unloadedAt" type="datetime-local" required>
@@ -133,6 +133,7 @@
           <div class="driver-quick-actions" id="driverQuickActions">
             <button class="primary-action driver-primary-shortcut" id="driverPrimaryShortcut" type="button">Добавить расход</button>
             <div>
+              <button class="secondary-action" id="completeTripShortcut" type="button" hidden aria-controls="completeTripForm" aria-expanded="false">Завершить рейс</button>
               <button class="secondary-action" id="tripDetailsShortcut" type="button">Детали рейса</button>
               <button class="secondary-action" id="receiptPhotoShortcut" type="button">Фото чека</button>
             </div>
@@ -167,7 +168,7 @@
             <div class="portal-section-heading">
               <div>
                 <p class="section-kicker">Сообщения офиса</p>
-                <h2>Уведомления</h2>
+                <h2>Все сообщения</h2>
               </div>
               <span class="status-badge" id="driverNotificationCount">0 новых</span>
             </div>
@@ -325,6 +326,6 @@
       </form>
     </dialog>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="./driver.js?v=75" type="module"></script>
+    <script src="./driver.js?v=82" type="module"></script>
   </body>
 </html>

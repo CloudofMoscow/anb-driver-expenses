@@ -1,0 +1,436 @@
+{
+  "createdAt": "2026-11-11T21:46:31.647Z",
+  "node": "v24.19.0",
+  "source": "demo-data/anb.sqlite (SQLite backup into disposable temp directory)",
+  "checks": [
+    {
+      "name": "driver cannot read office bootstrap",
+      "passed": true,
+      "status": 403,
+      "code": "FORBIDDEN"
+    },
+    {
+      "name": "office cannot read driver bootstrap",
+      "passed": true,
+      "status": 403,
+      "code": "FORBIDDEN"
+    },
+    {
+      "name": "no session cannot read private file",
+      "passed": true,
+      "status": 401,
+      "code": "AUTH_REQUIRED"
+    },
+    {
+      "name": "legacy application is excluded",
+      "passed": true,
+      "status": 404,
+      "code": "NOT_FOUND"
+    },
+    {
+      "name": "source tree is excluded",
+      "passed": true,
+      "status": 404,
+      "code": "NOT_FOUND"
+    },
+    {
+      "name": "database is excluded",
+      "passed": true,
+      "status": 404,
+      "code": "NOT_FOUND"
+    },
+    {
+      "name": "malformed JSON returns 400",
+      "passed": true,
+      "status": 400,
+      "code": "INVALID_JSON"
+    },
+    {
+      "name": "null JSON returns validation error, not 500",
+      "passed": false,
+      "status": 500,
+      "code": "UNEXPECTED_ERROR",
+      "result": {
+        "error": "Внутренняя ошибка сервера",
+        "code": "UNEXPECTED_ERROR"
+      }
+    },
+    {
+      "name": "malformed cookie returns client error, not 500",
+      "passed": false,
+      "status": 500,
+      "code": "UNEXPECTED_ERROR",
+      "result": {
+        "error": "Внутренняя ошибка сервера",
+        "code": "UNEXPECTED_ERROR"
+      }
+    },
+    {
+      "name": "malformed percent URL returns client error, not 500",
+      "passed": false,
+      "status": 500,
+      "code": "UNEXPECTED_ERROR",
+      "result": {
+        "error": "Внутренняя ошибка сервера",
+        "code": "UNEXPECTED_ERROR"
+      }
+    },
+    {
+      "name": "driver DTO does not expose compensation, customer rate or contracts",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "name": "trip rejects invalid integer money -1",
+      "passed": true,
+      "status": 400,
+      "code": "VALIDATION_ERROR"
+    },
+    {
+      "name": "trip rejects invalid integer money 1.1",
+      "passed": true,
+      "status": 400,
+      "code": "VALIDATION_ERROR"
+    },
+    {
+      "name": "trip rejects invalid integer money 9007199254740992",
+      "passed": true,
+      "status": 400,
+      "code": "VALIDATION_ERROR"
+    },
+    {
+      "name": "trip rejects invalid date",
+      "passed": true,
+      "status": 400,
+      "code": "VALIDATION_ERROR"
+    },
+    {
+      "name": "trip rejects 11 extra stops",
+      "passed": true,
+      "status": 400,
+      "code": "VALIDATION_ERROR"
+    },
+    {
+      "name": "SQL-looking search parameters do not break report",
+      "passed": true,
+      "status": 400,
+      "code": "VALIDATION_ERROR"
+    }
+  ],
+  "metrics": [
+    {
+      "trips": 4,
+      "expenses": 5,
+      "path": "/api/office/bootstrap",
+      "status": 200,
+      "bytes": 45309,
+      "ms": [
+        13.51,
+        16.1,
+        22.08
+      ],
+      "medianMs": 16.1,
+      "prepareCalls": [
+        68,
+        68,
+        68
+      ],
+      "note": "Local loopback, no network throttling; synthetic historical trips, one expense each; server+response consumption, excludes DOM rendering."
+    },
+    {
+      "trips": 4,
+      "expenses": 5,
+      "path": "/api/office/report?from=2026-01-01&to=2026-12-31",
+      "status": 200,
+      "bytes": 9436,
+      "ms": [
+        14.16,
+        15.9,
+        16.59
+      ],
+      "medianMs": 15.9,
+      "prepareCalls": [
+        8,
+        8,
+        8
+      ],
+      "note": "Local loopback, no network throttling; synthetic historical trips, one expense each; server+response consumption, excludes DOM rendering."
+    },
+    {
+      "trips": 4,
+      "expenses": 5,
+      "path": "/api/driver/bootstrap",
+      "status": 200,
+      "bytes": 8680,
+      "ms": [
+        15.52,
+        16.46,
+        16.57
+      ],
+      "medianMs": 16.46,
+      "prepareCalls": [
+        8,
+        8,
+        8
+      ],
+      "note": "Local loopback, no network throttling; synthetic historical trips, one expense each; server+response consumption, excludes DOM rendering."
+    },
+    {
+      "trips": 100,
+      "expenses": 101,
+      "path": "/api/office/bootstrap",
+      "status": 200,
+      "bytes": 407184,
+      "ms": [
+        25.84,
+        26.75,
+        28.74
+      ],
+      "medianMs": 26.75,
+      "prepareCalls": [
+        356,
+        356,
+        356
+      ],
+      "note": "Local loopback, no network throttling; synthetic historical trips, one expense each; server+response consumption, excludes DOM rendering."
+    },
+    {
+      "trips": 100,
+      "expenses": 101,
+      "path": "/api/office/report?from=2026-01-01&to=2026-12-31",
+      "status": 200,
+      "bytes": 251169,
+      "ms": [
+        10.82,
+        17.53,
+        28.2
+      ],
+      "medianMs": 17.53,
+      "prepareCalls": [
+        8,
+        8,
+        8
+      ],
+      "note": "Local loopback, no network throttling; synthetic historical trips, one expense each; server+response consumption, excludes DOM rendering."
+    },
+    {
+      "trips": 100,
+      "expenses": 101,
+      "path": "/api/driver/bootstrap",
+      "status": 200,
+      "bytes": 149860,
+      "ms": [
+        15.84,
+        16.9,
+        21.65
+      ],
+      "medianMs": 16.9,
+      "prepareCalls": [
+        104,
+        104,
+        104
+      ],
+      "note": "Local loopback, no network throttling; synthetic historical trips, one expense each; server+response consumption, excludes DOM rendering."
+    },
+    {
+      "trips": 1000,
+      "expenses": 1001,
+      "path": "/api/office/bootstrap",
+      "status": 200,
+      "bytes": 3804669,
+      "ms": [
+        157.51,
+        162.89,
+        163.22
+      ],
+      "medianMs": 162.89,
+      "prepareCalls": [
+        3056,
+        3056,
+        3056
+      ],
+      "note": "Local loopback, no network throttling; synthetic historical trips, one expense each; server+response consumption, excludes DOM rendering."
+    },
+    {
+      "trips": 1000,
+      "expenses": 1001,
+      "path": "/api/office/report?from=2026-01-01&to=2026-12-31",
+      "status": 200,
+      "bytes": 2519180,
+      "ms": [
+        63.73,
+        65.41,
+        75.05
+      ],
+      "medianMs": 65.41,
+      "prepareCalls": [
+        8,
+        8,
+        8
+      ],
+      "note": "Local loopback, no network throttling; synthetic historical trips, one expense each; server+response consumption, excludes DOM rendering."
+    },
+    {
+      "trips": 1000,
+      "expenses": 1001,
+      "path": "/api/driver/bootstrap",
+      "status": 200,
+      "bytes": 1477348,
+      "ms": [
+        47.64,
+        53.38,
+        76.02
+      ],
+      "medianMs": 53.38,
+      "prepareCalls": [
+        1004,
+        1004,
+        1004
+      ],
+      "note": "Local loopback, no network throttling; synthetic historical trips, one expense each; server+response consumption, excludes DOM rendering."
+    },
+    {
+      "trips": 5000,
+      "expenses": 5001,
+      "path": "/api/office/bootstrap",
+      "status": 200,
+      "bytes": 18924654,
+      "ms": [
+        740.38,
+        793.36,
+        825.04
+      ],
+      "medianMs": 793.36,
+      "prepareCalls": [
+        15056,
+        15056,
+        15056
+      ],
+      "note": "Local loopback, no network throttling; synthetic historical trips, one expense each; server+response consumption, excludes DOM rendering."
+    },
+    {
+      "trips": 5000,
+      "expenses": 5001,
+      "path": "/api/office/report?from=2026-01-01&to=2026-12-31",
+      "status": 200,
+      "bytes": 12607185,
+      "ms": [
+        290.28,
+        296.35,
+        296.41
+      ],
+      "medianMs": 296.35,
+      "prepareCalls": [
+        8,
+        8,
+        8
+      ],
+      "note": "Local loopback, no network throttling; synthetic historical trips, one expense each; server+response consumption, excludes DOM rendering."
+    },
+    {
+      "trips": 5000,
+      "expenses": 5001,
+      "path": "/api/driver/bootstrap",
+      "status": 200,
+      "bytes": 7393336,
+      "ms": [
+        210.47,
+        213.93,
+        249.16
+      ],
+      "medianMs": 213.93,
+      "prepareCalls": [
+        5004,
+        5004,
+        5004
+      ],
+      "note": "Local loopback, no network throttling; synthetic historical trips, one expense each; server+response consumption, excludes DOM rendering."
+    }
+  ],
+  "assets": [
+    {
+      "name": "login.html",
+      "bytes": 1818,
+      "gzipBytes": 806,
+      "brotliBytes": 565
+    },
+    {
+      "name": "driver.html",
+      "bytes": 20591,
+      "gzipBytes": 4674,
+      "brotliBytes": 3711
+    },
+    {
+      "name": "office.html",
+      "bytes": 53503,
+      "gzipBytes": 9995,
+      "brotliBytes": 8148
+    },
+    {
+      "name": "styles.css",
+      "bytes": 105167,
+      "gzipBytes": 16797,
+      "brotliBytes": 13733
+    },
+    {
+      "name": "office.js",
+      "bytes": 150818,
+      "gzipBytes": 31420,
+      "brotliBytes": 25549
+    },
+    {
+      "name": "driver.js",
+      "bytes": 69221,
+      "gzipBytes": 16311,
+      "brotliBytes": 13709
+    },
+    {
+      "name": "driver-outbox.js",
+      "bytes": 8354,
+      "gzipBytes": 2336,
+      "brotliBytes": 1958
+    },
+    {
+      "name": "api-client.js",
+      "bytes": 4403,
+      "gzipBytes": 1750,
+      "brotliBytes": 1456
+    },
+    {
+      "name": "financial-mutation.js",
+      "bytes": 3787,
+      "gzipBytes": 1495,
+      "brotliBytes": 1229
+    },
+    {
+      "name": "push-notifications.js",
+      "bytes": 5224,
+      "gzipBytes": 1705,
+      "brotliBytes": 1379
+    },
+    {
+      "name": "theme.js",
+      "bytes": 1111,
+      "gzipBytes": 499,
+      "brotliBytes": 398
+    },
+    {
+      "name": "login.js",
+      "bytes": 2191,
+      "gzipBytes": 910,
+      "brotliBytes": 691
+    },
+    {
+      "name": "sw.js",
+      "bytes": 3744,
+      "gzipBytes": 1370,
+      "brotliBytes": 1133
+    }
+  ],
+  "staticDelivery": {
+    "status": 200,
+    "cacheControl": "public, max-age=3600",
+    "etag": null,
+    "contentEncoding": null
+  }
+}

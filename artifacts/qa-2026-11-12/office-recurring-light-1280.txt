@@ -1,0 +1,99 @@
+- banner:
+  - img "ANB Group"
+  - heading "ANB Group · демо" [level=1]
+  - paragraph: Кабинет офиса
+  - tablist "Разделы":
+    - tab "Обзор"
+    - tab "Рейсы"
+    - tab "Расходы"
+    - tab "Водители"
+    - tab "Автопарк" [selected]
+    - tab "Заказчики"
+    - tab "Доходность"
+    - tab "Настройки"
+  - generic: Данные защищены
+  - generic "Аккаунт"
+- main:
+  - generic: Что найти или сделать?
+  - searchbox "Что найти или сделать?"
+  - generic "Быстрый поиск":
+    - button "Рейс"
+    - button "Заказчик"
+    - button "Водитель"
+    - button "Машина"
+  - button "Открыть уведомления": Уведомления
+  - navigation "Быстрые действия":
+    - button "Создать рейс"
+    - button "Записать оплату"
+    - button "Перевести водителю"
+    - button "Добавить расход"
+  - tabpanel "Автопарк":
+    - paragraph: Транспорт и составы
+    - heading "Автопарк" [level=2]
+    - generic "Разделы автопарка":
+      - button "Сцепки"
+      - button "Тягачи и тралы"
+      - button "Постоянные расходы" [active]
+    - paragraph: Лизинг, страховка и прочее
+    - heading "Постоянные расходы" [level=2]
+    - heading "Постоянный расход сцепки" [level=2]
+    - generic: Сцепка
+    - combobox "Сцепка":
+      - option "MAN TGX · 4 осей" [selected]
+      - option "Mercedes-Benz Actros · 5 осей"
+      - option "Scania R500 · 6 осей"
+      - option "Volvo FH · 5 осей"
+      - option "КамАЗ К5 · 4 осей"
+    - generic: Категория
+    - combobox "Категория"
+    - generic: Сумма, ₽
+    - textbox "Сумма, ₽":
+      - /placeholder: "60000"
+    - generic: Как учитывать
+    - combobox "Как учитывать":
+      - option "Повторять эту сумму каждый месяц" [selected]
+      - option "Разделить общую сумму на месяцы"
+    - generic: С какого месяца
+    - textbox "С какого месяца": 2026-11
+    - generic: По какой месяц
+    - textbox "По какой месяц"
+    - generic: Комментарий
+    - textbox "Комментарий"
+    - button "Добавить постоянный расход"
+    - article:
+      - strong: Лизинг сцепки
+      - generic: КамАЗ К5 · 4 осей
+      - generic: 220 000 ₽ каждый месяц
+      - generic: 1 июля 2026 г. — бессрочно
+      - button "Отменить"
+    - article:
+      - strong: Лизинг сцепки
+      - generic: Volvo FH · 5 осей
+      - generic: 210 000 ₽ каждый месяц
+      - generic: 1 июля 2026 г. — бессрочно
+      - button "Отменить"
+    - article:
+      - strong: Лизинг сцепки
+      - generic: Scania R500 · 6 осей
+      - generic: 200 000 ₽ каждый месяц
+      - generic: 1 июля 2026 г. — бессрочно
+      - button "Отменить"
+    - article:
+      - strong: Лизинг сцепки
+      - generic: MAN TGX · 4 осей
+      - generic: 190 000 ₽ каждый месяц
+      - generic: 1 июля 2026 г. — бессрочно
+      - button "Отменить"
+    - article:
+      - strong: Лизинг сцепки
+      - generic: Mercedes-Benz Actros · 5 осей
+      - generic: 180 000 ₽ каждый месяц
+      - generic: 1 июля 2026 г. — бессрочно
+      - button "Отменить"
+    - article:
+      - strong: Страховка
+      - generic: КамАЗ К5 · 4 осей
+      - generic: 120 000 ₽ / 12 мес.
+      - generic: 1 июля 2026 г. — бессрочно
+      - button "Отменить"
+- status: Расход отменён и сохранён в истории

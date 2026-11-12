@@ -1,0 +1,476 @@
+{
+  "verification": "Static sRGB WCAG contrast calculation from styles.css token pairs. This is NOT computed browser style, screenshot QA, or a user-flow test.",
+  "sourceSha256": "18baf46e4fdbda969f3295d75951cea6b86f4283eb653529daf551e8ddd96952",
+  "baseline": {
+    "whiteTextOnWhite": 1.08,
+    "oldFocusOnDarkSurface": 2.22,
+    "oldNegativeOnDarkSurface": 2.51
+  },
+  "checks": [
+    {
+      "theme": "light",
+      "name": "Main text / --bg",
+      "foreground": "#0d0d0d",
+      "background": "#f1f2f4",
+      "ratio": 17.35,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "theme": "light",
+      "name": "Secondary text / --bg",
+      "foreground": "#656971",
+      "background": "#f1f2f4",
+      "ratio": 4.92,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "theme": "light",
+      "name": "Financial negative / --bg",
+      "foreground": "#b61117",
+      "background": "#f1f2f4",
+      "ratio": 6.08,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "theme": "light",
+      "name": "Positive / --bg",
+      "foreground": "#237b3d",
+      "background": "#f1f2f4",
+      "ratio": 4.72,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "theme": "light",
+      "name": "Warning / --bg",
+      "foreground": "#a65b00",
+      "background": "#f1f2f4",
+      "ratio": 4.55,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "theme": "light",
+      "name": "Focus / --bg",
+      "foreground": "#a70f16",
+      "background": "#f1f2f4",
+      "ratio": 6.88,
+      "minimum": 3,
+      "pass": true
+    },
+    {
+      "theme": "light",
+      "name": "Main text / --surface",
+      "foreground": "#0d0d0d",
+      "background": "#ffffff",
+      "ratio": 19.44,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "theme": "light",
+      "name": "Secondary text / --surface",
+      "foreground": "#656971",
+      "background": "#ffffff",
+      "ratio": 5.51,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "theme": "light",
+      "name": "Financial negative / --surface",
+      "foreground": "#b61117",
+      "background": "#ffffff",
+      "ratio": 6.81,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "theme": "light",
+      "name": "Positive / --surface",
+      "foreground": "#237b3d",
+      "background": "#ffffff",
+      "ratio": 5.29,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "theme": "light",
+      "name": "Warning / --surface",
+      "foreground": "#a65b00",
+      "background": "#ffffff",
+      "ratio": 5.1,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "theme": "light",
+      "name": "Focus / --surface",
+      "foreground": "#a70f16",
+      "background": "#ffffff",
+      "ratio": 7.71,
+      "minimum": 3,
+      "pass": true
+    },
+    {
+      "theme": "light",
+      "name": "Main text / --surface-soft",
+      "foreground": "#0d0d0d",
+      "background": "#f7f8fa",
+      "ratio": 18.29,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "theme": "light",
+      "name": "Secondary text / --surface-soft",
+      "foreground": "#656971",
+      "background": "#f7f8fa",
+      "ratio": 5.18,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "theme": "light",
+      "name": "Financial negative / --surface-soft",
+      "foreground": "#b61117",
+      "background": "#f7f8fa",
+      "ratio": 6.41,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "theme": "light",
+      "name": "Positive / --surface-soft",
+      "foreground": "#237b3d",
+      "background": "#f7f8fa",
+      "ratio": 4.98,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "theme": "light",
+      "name": "Warning / --surface-soft",
+      "foreground": "#a65b00",
+      "background": "#f7f8fa",
+      "ratio": 4.8,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "theme": "light",
+      "name": "Focus / --surface-soft",
+      "foreground": "#a70f16",
+      "background": "#f7f8fa",
+      "ratio": 7.26,
+      "minimum": 3,
+      "pass": true
+    },
+    {
+      "theme": "light",
+      "name": "Warnings and field errors",
+      "foreground": "#b61117",
+      "background": "#fff0f0",
+      "ratio": 6.16,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "theme": "light",
+      "name": "Selected navigation and links",
+      "foreground": "#b61117",
+      "background": "#fff0f0",
+      "ratio": 6.16,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "theme": "light",
+      "name": "Focus around tinted panels",
+      "foreground": "#a70f16",
+      "background": "#fff0f0",
+      "ratio": 6.97,
+      "minimum": 3,
+      "pass": true
+    },
+    {
+      "theme": "light",
+      "name": "Primary action",
+      "foreground": "#fff",
+      "background": "#d71920",
+      "ratio": 5.19,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "theme": "light",
+      "name": "Primary action hover",
+      "foreground": "#fff",
+      "background": "#b61117",
+      "ratio": 6.81,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "theme": "light",
+      "name": "Destructive filled action",
+      "foreground": "#fff",
+      "background": "#b61117",
+      "ratio": 6.81,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "theme": "light",
+      "name": "Form field boundary",
+      "foreground": "#89919c",
+      "background": "#ffffff",
+      "ratio": 3.18,
+      "minimum": 3,
+      "pass": true
+    },
+    {
+      "theme": "dark",
+      "name": "Main text / --bg",
+      "foreground": "#f5f6f8",
+      "background": "#111315",
+      "ratio": 17.22,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "theme": "dark",
+      "name": "Secondary text / --bg",
+      "foreground": "#aeb4bd",
+      "background": "#111315",
+      "ratio": 8.92,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "theme": "dark",
+      "name": "Financial negative / --bg",
+      "foreground": "#ff7378",
+      "background": "#111315",
+      "ratio": 7.07,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "theme": "dark",
+      "name": "Positive / --bg",
+      "foreground": "#65c57d",
+      "background": "#111315",
+      "ratio": 8.72,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "theme": "dark",
+      "name": "Warning / --bg",
+      "foreground": "#f0a74a",
+      "background": "#111315",
+      "ratio": 9.16,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "theme": "dark",
+      "name": "Focus / --bg",
+      "foreground": "#ff7378",
+      "background": "#111315",
+      "ratio": 7.07,
+      "minimum": 3,
+      "pass": true
+    },
+    {
+      "theme": "dark",
+      "name": "Main text / --surface",
+      "foreground": "#f5f6f8",
+      "background": "#191c20",
+      "ratio": 15.81,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "theme": "dark",
+      "name": "Secondary text / --surface",
+      "foreground": "#aeb4bd",
+      "background": "#191c20",
+      "ratio": 8.19,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "theme": "dark",
+      "name": "Financial negative / --surface",
+      "foreground": "#ff7378",
+      "background": "#191c20",
+      "ratio": 6.49,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "theme": "dark",
+      "name": "Positive / --surface",
+      "foreground": "#65c57d",
+      "background": "#191c20",
+      "ratio": 8.01,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "theme": "dark",
+      "name": "Warning / --surface",
+      "foreground": "#f0a74a",
+      "background": "#191c20",
+      "ratio": 8.41,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "theme": "dark",
+      "name": "Focus / --surface",
+      "foreground": "#ff7378",
+      "background": "#191c20",
+      "ratio": 6.49,
+      "minimum": 3,
+      "pass": true
+    },
+    {
+      "theme": "dark",
+      "name": "Main text / --surface-soft",
+      "foreground": "#f5f6f8",
+      "background": "#22262c",
+      "ratio": 14.06,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "theme": "dark",
+      "name": "Secondary text / --surface-soft",
+      "foreground": "#aeb4bd",
+      "background": "#22262c",
+      "ratio": 7.28,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "theme": "dark",
+      "name": "Financial negative / --surface-soft",
+      "foreground": "#ff7378",
+      "background": "#22262c",
+      "ratio": 5.77,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "theme": "dark",
+      "name": "Positive / --surface-soft",
+      "foreground": "#65c57d",
+      "background": "#22262c",
+      "ratio": 7.12,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "theme": "dark",
+      "name": "Warning / --surface-soft",
+      "foreground": "#f0a74a",
+      "background": "#22262c",
+      "ratio": 7.48,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "theme": "dark",
+      "name": "Focus / --surface-soft",
+      "foreground": "#ff7378",
+      "background": "#22262c",
+      "ratio": 5.77,
+      "minimum": 3,
+      "pass": true
+    },
+    {
+      "theme": "dark",
+      "name": "Warnings and field errors",
+      "foreground": "#ff7378",
+      "background": "#3a171a",
+      "ratio": 6.05,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "theme": "dark",
+      "name": "Selected navigation and links",
+      "foreground": "#ff7378",
+      "background": "#3a171a",
+      "ratio": 6.05,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "theme": "dark",
+      "name": "Focus around tinted panels",
+      "foreground": "#ff7378",
+      "background": "#3a171a",
+      "ratio": 6.05,
+      "minimum": 3,
+      "pass": true
+    },
+    {
+      "theme": "dark",
+      "name": "Primary action",
+      "foreground": "#fff",
+      "background": "#d71920",
+      "ratio": 5.19,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "theme": "dark",
+      "name": "Primary action hover",
+      "foreground": "#fff",
+      "background": "#b61117",
+      "ratio": 6.81,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "theme": "dark",
+      "name": "Destructive filled action",
+      "foreground": "#fff",
+      "background": "#b61117",
+      "ratio": 6.81,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "theme": "dark",
+      "name": "Form field boundary",
+      "foreground": "#69727e",
+      "background": "#121519",
+      "ratio": 3.76,
+      "minimum": 3,
+      "pass": true
+    },
+    {
+      "theme": "both",
+      "name": "Authentication focus on fixed dark card",
+      "foreground": "#ff7378",
+      "background": "#111",
+      "ratio": 7.17,
+      "minimum": 3,
+      "pass": true
+    }
+  ],
+  "passed": 51,
+  "total": 51,
+  "browser": {
+    "verifiedViewports": [],
+    "status": "Blocked: Windows Computer Use could not determine Chrome URL confidently; in-app browser unavailable. No new screenshots or browser claims."
+  }
+}

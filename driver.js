@@ -7,7 +7,7 @@ import {
   formatRubles,
   rublesToKopecks,
   showToast
-} from "./api-client.js";
+} from "./api-client.js?v=82";
 import {
   clearDriverOperations,
   countDriverOperations,
@@ -15,8 +15,10 @@ import {
   enqueueDriverOperation,
   flushDriverOperations,
   listDriverOperations
-} from "./driver-outbox.js";
-import { initializePushNotifications } from "./push-notifications.js";
+} from "./driver-outbox.js?v=82";
+import { initializePushNotifications } from "./push-notifications.js?v=82";
+import { captureUiState, updateTabStops } from "./ui-state.js?v=82";
+import { installFormFeedback, showFormError, validateForm } from "./form-feedback.js?v=82";
 
 const cacheKeyPrefix = "anb-driver-bootstrap-v2";
 const selectedTripKeyPrefix = "anb-selected-trip-v2";
@@ -59,6 +61,7 @@ const els = {
   tripExpenseTotal: document.querySelector("#tripExpenseTotal"),
   tripExpenseCount: document.querySelector("#tripExpenseCount"),
   primaryShortcut: document.querySelector("#driverPrimaryShortcut"),
+  completeTripShortcut: document.querySelector("#completeTripShortcut"),
   tripDetailsShortcut: document.querySelector("#tripDetailsShortcut"),
   receiptPhotoShortcut: document.querySelector("#receiptPhotoShortcut"),
   tabs: document.querySelectorAll("[data-driver-tab]"),
@@ -131,7 +134,13 @@ let state = {
   locationRefreshing: false
 };
 let selectedTripId = "";
+const tripFormDrafts = new Map();
+let notificationLimit = 20;
+const notificationReadErrors = new Map();
 let driverActionResolver = null;
+let driverActionSubmit = null;
+let driverActionPending = false;
+let queuingOperation = false;
 let geolocationNoticeShown = false;
 
 init();
@@ -176,12 +185,12 @@ async function init() {
 }
 
 async function refreshWhenVisible() {
-  if (document.visibilityState !== "visible" || !navigator.onLine || state.syncing) return;
-  await loadData();
+  if (document.visibilityState !== "visible" || !navigator.onLine || state.syncing || queuingOperation) return;
+  await loadData({ background: true });
   await flushPendingOperations();
 }
 
-async function loadData() {
+async function loadData({ background = false } = {}) {
   let operations = [];
   try {
     operations = await listDriverOperations(state.user?.id);
@@ -189,7 +198,9 @@ async function loadData() {
     showToast(els.toast, error.message, true);
   }
   try {
-    const data = sanitizeDriverData(await api("/api/driver/bootstrap"));
+    const response = await api("/api/driver/bootstrap", { skipUnchanged: background && !operations.length && !state.pendingCount && !state.offline });
+    if (!response) return;
+    const data = sanitizeDriverData(response);
     state = { ...state, ...data, offline: false };
     rememberUser(data.user);
   } catch (error) {
@@ -217,12 +228,13 @@ function chooseTrip() {
   const active = state.trips.find((trip) => trip.status === "in_progress");
   const selected = state.trips.find((trip) => trip.id === selectedTripId);
   const assigned = state.trips.find((trip) => ["assigned", "awaiting_loading"].includes(trip.status));
-  const next = active || assigned || selected || state.trips[0];
+  const next = selected || active || assigned || state.trips[0];
   selectedTripId = next?.id || "";
   if (selectedTripId) localStorage.setItem(selectedTripStorageKey(), selectedTripId);
 }
 
 function render() {
+  const restoreUi = captureUiState();
   const trip = selectedTrip();
   const rejectedOperation = rejectedQueuedOperation();
   renderCapabilities();
@@ -239,6 +251,7 @@ function render() {
   els.tripExpenseTotal.textContent = formatRubles(tripExpenses.reduce((sum, expense) => sum + expense.amount_kopecks, 0));
   els.tripExpenseCount.textContent = String(tripExpenses.length);
   renderDriverShortcuts(trip);
+  restoreUi();
   els.expenseForm.querySelectorAll("input,select,textarea,button").forEach((control) => {
     control.disabled = state.syncing || Boolean(rejectedOperation) || trip?.status !== "in_progress";
   });
@@ -298,6 +311,7 @@ function renderDriverHome(trip) {
   }
   els.homeReceiptButton.disabled = !active;
   els.homeTripButton.disabled = !trip;
+  els.homeTripButton.textContent = trip?.status === "in_progress" ? "Завершить рейс" : "Посмотреть рейс";
   els.syncHeadline.textContent = state.pendingCount ? `Ожидает отправки: ${state.pendingCount}` : "Все данные сохранены";
   els.syncDetail.textContent = state.offline
     ? "Нет связи — новые записи сохранятся на телефоне"
@@ -315,6 +329,9 @@ function renderDriverShortcuts(trip) {
   els.tripDetailsShortcut.disabled = !hasTrip;
   els.receiptPhotoShortcut.disabled = trip?.status !== "in_progress";
   els.primaryShortcut.hidden = false;
+  els.completeTripShortcut.hidden = trip?.status !== "in_progress";
+  els.completeTripShortcut.disabled = state.syncing || Boolean(rejectedQueuedOperation());
+  els.completeTripShortcut.setAttribute("aria-expanded", String(trip?.status === "in_progress" && els.tripDetail.classList.contains("action-expanded")));
   if (!trip) {
     els.primaryShortcut.textContent = "Рейс ещё не назначен";
     els.primaryShortcut.disabled = true;
@@ -446,18 +463,22 @@ async function discardQueuedOperation(operation) {
 }
 
 function renderNotifications() {
-  const notifications = state.notifications || [];
+  const restoreUi = captureUiState();
+  const notifications = [...(state.notifications || [])].sort((a, b) => b.created_at.localeCompare(a.created_at));
   const unread = notifications.filter((notification) => !notification.read_at);
-  els.notificationSection.hidden = unread.length === 0;
-  els.notificationCount.textContent = `${unread.length} новых`;
+  els.notificationSection.hidden = false;
+  els.notificationCount.textContent = unread.length ? `Новых: ${unread.length}` : "Новых сообщений нет";
   els.notificationCount.dataset.status = unread.length ? "needs_explanation" : "confirmed";
   els.notificationList.innerHTML = "";
-  unread.slice(0, 20).forEach((notification) => {
+  if (!notifications.length) els.notificationList.innerHTML = '<p class="workspace-empty">Сообщений пока нет. Здесь появятся назначения рейсов и сообщения от офиса.</p>';
+  notifications.slice(0, notificationLimit).forEach((notification) => {
     const actionLabel = ["trip_assigned", "trip_reassigned", "trip_route_updated"]
       .includes(notification.notification_type)
       ? "Рейс принят"
       : "Понятно";
     const card = document.createElement("article");
+    card.dataset.uiKey = `notification-${notification.id}`;
+    card.tabIndex = -1;
     card.className = `notification-card${notification.read_at ? " notification-read" : ""}`;
     card.innerHTML = `
       <div>
@@ -465,25 +486,44 @@ function renderNotifications() {
         <span>${escapeHtml(formatDateTime(notification.created_at))}</span>
       </div>
       <p>${escapeHtml(notification.message)}</p>
-      ${notification.read_at ? "" : `<button type="button" data-read-notification>${actionLabel}</button>`}
+      ${notification.read_at ? '<p data-read-status tabindex="-1">Прочитано</p>' : `<button type="button" data-read-notification>${notificationReadErrors.has(notification.id) ? "Повторить" : actionLabel}</button>`}
+      ${notificationReadErrors.has(notification.id) ? `<p class="form-error" role="alert">${escapeHtml(notificationReadErrors.get(notification.id))}</p>` : ""}
     `;
-    card.querySelector("[data-read-notification]")?.addEventListener("click", () => markNotificationRead(notification));
+    card.querySelector("[data-read-notification]")?.addEventListener("click", (event) => markNotificationRead(notification, event.currentTarget));
     els.notificationList.append(card);
   });
+  if (notifications.length > notificationLimit) {
+    const more = document.createElement("button");
+    more.type = "button";
+    more.id = "driverMoreMessages";
+    more.textContent = "Показать ещё";
+    more.addEventListener("click", () => {
+      notificationLimit += 20;
+      renderNotifications();
+      els.notificationList.querySelectorAll("article")[notificationLimit - 20]?.focus({ preventScroll: true });
+    });
+    els.notificationList.append(more);
+  }
+  restoreUi();
 }
 
-async function markNotificationRead(notification) {
-  if (state.offline) {
-    showToast(els.toast, "Отметить сообщение прочитанным можно после восстановления связи", true);
-    return;
-  }
+async function markNotificationRead(notification, button) {
+  if (button.disabled) return;
+  button.disabled = true;
+  button.textContent = "Сохраняем…";
   try {
+    if (state.offline) throw new Error("Отметить сообщение прочитанным можно после восстановления связи");
     const result = await api(`/api/driver/notifications/${notification.id}/read`, { method: "POST" });
     const index = state.notifications.findIndex((item) => item.id === notification.id);
     if (index >= 0) state.notifications[index] = result.notification;
     writeCache(driverCacheSnapshot());
+    notificationReadErrors.delete(notification.id);
     renderNotifications();
+    els.notificationList.querySelector(`[data-ui-key="notification-${CSS.escape(notification.id)}"] [data-read-status]`)?.focus({ preventScroll: true });
+    showToast(els.toast, "Сообщение прочитано");
   } catch (error) {
+    notificationReadErrors.set(notification.id, error.message);
+    renderNotifications();
     showToast(els.toast, error.message, true);
   }
 }
@@ -496,6 +536,7 @@ function renderTripList() {
     const button = document.createElement("button");
     button.type = "button";
     button.className = `trip-choice ${trip.id === selectedTripId ? "active" : ""}`;
+    button.dataset.uiKey = `driver-trip-${trip.id}`;
     button.disabled = Boolean(active && active.id !== trip.id);
     if (button.disabled) button.title = "Сначала завершите активный рейс";
     button.innerHTML = `
@@ -503,9 +544,10 @@ function renderTripList() {
       <span>${escapeHtml(trip._pendingSync ? "Ожидает отправки" : statusLabel(trip.status))} · ${escapeHtml(formatDate(trip.planned_loading_date))}</span>
     `;
     button.addEventListener("click", () => {
+      if (queuingOperation) return;
       selectedTripId = trip.id;
       localStorage.setItem(selectedTripStorageKey(), selectedTripId);
-      els.tripDetail.classList.remove("action-expanded", "details-expanded");
+      els.tripDetail.classList.remove("action-expanded", "details-expanded", "completion-expanded");
       els.tripDetailsShortcut.textContent = "Детали рейса";
       render();
     });
@@ -514,6 +556,7 @@ function renderTripList() {
 }
 
 function renderTrip(trip) {
+  bindTripFormDrafts(trip?.id || "");
   els.tripDetail.hidden = !trip;
   if (!trip) return;
   els.tripRoute.textContent = tripRouteText(trip);
@@ -542,6 +585,32 @@ function renderTrip(trip) {
   els.completeTripForm.querySelectorAll("input,button").forEach((control) => { control.disabled = blocked; });
 }
 
+// Keep each form and its files attached to the trip it was filled for.
+function bindTripFormDrafts(tripId) {
+  for (const form of [els.startTripForm, els.completeTripForm, els.expenseForm]) {
+    if (form.dataset.tripId === tripId) continue;
+    if (form.dataset.tripId) {
+      tripFormDrafts.set(`${form.id}:${form.dataset.tripId}`, [...form.elements]
+        .filter((control) => control.matches("input, select, textarea"))
+        .map((control) => ({ id: control.id, value: control.value, files: control.type === "file" ? [...control.files] : null })));
+    }
+    form.reset();
+    form.dataset.tripId = tripId;
+    form.querySelectorAll('input[type="datetime-local"]').forEach((control) => { control.value = localDateTimeValue(new Date()); });
+    const draft = tripFormDrafts.get(`${form.id}:${tripId}`);
+    if (draft) for (const field of draft) {
+      const control = document.getElementById(field.id);
+      if (!control || !form.contains(control)) continue;
+      if (field.files) {
+        const transfer = new DataTransfer();
+        field.files.forEach((file) => transfer.items.add(file));
+        control.files = transfer.files;
+      }
+      else control.value = field.value;
+    }
+  }
+}
+
 function renderExpenses() {
   const statusFilter = els.expenseStatusFilter.value;
   const expenses = state.expenses.filter((expense) => !statusFilter || expense.status === statusFilter);
@@ -552,6 +621,7 @@ function renderExpenses() {
     const route = expenseTrip ? `${expenseTrip.loading_address} → ${expenseTrip.unloading_address}` : "Рейс";
     const card = document.createElement("article");
     card.className = "expense-card";
+    card.dataset.uiKey = `driver-expense-${expense.id}`;
     card.innerHTML = `
       <div class="expense-card-main">
         <div class="expense-title">
@@ -577,7 +647,7 @@ function renderExpenses() {
 }
 
 async function explainExpense(expense) {
-  const values = await requestDriverAction({
+  await requestDriverAction({
     eyebrow: `${expense.category} · ${formatRubles(expense.amount_kopecks)}`,
     title: "Ответить офису",
     description: "Пояснение сохранится в истории проверки расхода.",
@@ -588,21 +658,18 @@ async function explainExpense(expense) {
       type: "textarea",
       required: true,
       maxLength: 2000
-    }]
+    }],
+    onSubmit: async (values) => {
+      const result = await api(`/api/driver/expenses/${encodeURIComponent(expense.id)}/explanations`, {
+        method: "POST",
+        body: { message: values.message.trim() }
+      });
+      const index = state.expenses.findIndex((item) => item.id === expense.id);
+      if (index >= 0) state.expenses[index] = result.expense;
+      await loadData();
+      showToast(els.toast, "Пояснение отправлено в офис");
+    }
   });
-  if (!values) return;
-  try {
-    const result = await api(`/api/driver/expenses/${encodeURIComponent(expense.id)}/explanations`, {
-      method: "POST",
-      body: { message: values.message.trim() }
-    });
-    const index = state.expenses.findIndex((item) => item.id === expense.id);
-    if (index >= 0) state.expenses[index] = result.expense;
-    await loadData();
-    showToast(els.toast, "Пояснение отправлено в офис");
-  } catch (error) {
-    showToast(els.toast, error.message, true);
-  }
 }
 
 function requestDriverAction({
@@ -611,9 +678,13 @@ function requestDriverAction({
   description = "",
   confirmLabel = "Продолжить",
   destructive = false,
-  fields = []
+  fields = [],
+  onSubmit
 }) {
   if (driverActionResolver) closeDriverActionDialog(null);
+  driverActionSubmit = onSubmit;
+  els.actionForm.querySelector(".form-error-summary")?.remove();
+  els.actionForm.querySelectorAll("[data-form-error]").forEach((node) => node.remove());
   const previouslyFocused = document.activeElement;
   els.actionEyebrow.textContent = eyebrow;
   els.actionTitle.textContent = title;
@@ -651,17 +722,37 @@ function requestDriverAction({
   });
 }
 
-function submitDriverActionDialog(event) {
+async function submitDriverActionDialog(event) {
   event.preventDefault();
-  if (!els.actionForm.reportValidity()) return;
+  if (driverActionPending || !validateForm(els.actionForm) || !els.actionForm.reportValidity()) return;
   const values = {};
   els.actionFields.querySelectorAll("input, textarea").forEach((control) => {
     values[control.name] = control.value;
   });
-  closeDriverActionDialog(values);
+  driverActionPending = true;
+  els.actionSubmit.disabled = true;
+  els.actionCancel.disabled = true;
+  const label = els.actionSubmit.textContent;
+  els.actionSubmit.textContent = "Сохраняем…";
+  els.actionSubmit.setAttribute("aria-busy", "true");
+  try {
+    await driverActionSubmit?.(values);
+    driverActionPending = false;
+    closeDriverActionDialog(values);
+  } catch (error) {
+    showFormError(els.actionForm, error);
+  } finally {
+    driverActionPending = false;
+    els.actionSubmit.disabled = false;
+    els.actionCancel.disabled = false;
+    els.actionSubmit.removeAttribute("aria-busy");
+    els.actionSubmit.textContent = label;
+    if (els.actionDialog.open && document.activeElement === document.body) els.actionSubmit.focus();
+  }
 }
 
 function closeDriverActionDialog(result) {
+  if (driverActionPending) return;
   if (els.actionDialog.open) els.actionDialog.close();
   const resolve = driverActionResolver;
   driverActionResolver = null;
@@ -828,6 +919,8 @@ function driverAllocationLabel(type) {
 }
 
 function bindEvents() {
+  installFormFeedback([[els.expenseAmount, false]]);
+  window.addEventListener("resize", () => updateTabStops(els.tabs, location.hash === "#expense" ? document.querySelector("#driverTabJournal") : null));
   els.logoutButton.addEventListener("click", handleLogout);
   els.changePasswordButton.addEventListener("click", changeOwnPassword);
   els.clearDeviceButton.addEventListener("click", clearThisDevice);
@@ -841,7 +934,8 @@ function bindEvents() {
     switchTab("trip");
   });
   els.homeReceiptButton.addEventListener("click", () => openExpenseForm(true));
-  els.homeTripButton.addEventListener("click", () => switchTab("trip"));
+  els.homeTripButton.addEventListener("click", () => selectedTrip()?.status === "in_progress" ? openCompleteTripForm() : switchTab("trip"));
+  els.completeTripShortcut.addEventListener("click", openCompleteTripForm);
   els.homeMessageButton.addEventListener("click", () => switchTab("messages"));
   els.refreshDriverLocationButton.addEventListener("click", () => refreshDriverLocation({ announce: true }));
   els.openMessagesButton.addEventListener("click", () => switchTab("messages"));
@@ -878,7 +972,7 @@ function bindEvents() {
     const trip = selectedTrip();
     if (!trip) return;
     const expanded = els.tripDetail.classList.toggle("details-expanded");
-    els.tripDetail.classList.toggle("action-expanded", expanded && trip.status === "in_progress");
+    if (trip.status !== "in_progress") els.tripDetail.classList.toggle("action-expanded", expanded);
     els.tripDetailsShortcut.textContent = expanded ? "Скрыть детали" : "Детали рейса";
     scrollIntoViewRespectingMotion(els.tripDetail);
   });
@@ -914,8 +1008,10 @@ function bindEvents() {
       return;
     }
     await withButton(event.submitter, "Начинаем...", async () => {
+      if (els.startTripForm.dataset.tripId !== trip.id || !["assigned", "awaiting_loading"].includes(trip.status)) throw new Error("Проверьте выбранный рейс перед отправкой");
       const file = els.startOdometerPhoto.files[0];
       validateQueuedFile(file);
+      const draft = { clientMutationId: mutationId(), loadedAt: localDateTimeToIso(els.loadedAt.value), odometerKm: Number(els.startOdometer.value) };
       const location = await currentLocation();
       const operation = await enqueueDriverOperation({
         ownerUserId: state.user.id,
@@ -924,9 +1020,7 @@ function bindEvents() {
         attachmentKind: "odometer_start",
         file,
         payload: {
-          clientMutationId: mutationId(),
-          loadedAt: localDateTimeToIso(els.loadedAt.value),
-          odometerKm: Number(els.startOdometer.value),
+          ...draft,
           ...location
         }
       });
@@ -943,8 +1037,10 @@ function bindEvents() {
     const trip = selectedTrip();
     if (!trip) return;
     await withButton(event.submitter, "Завершаем...", async () => {
+      if (els.completeTripForm.dataset.tripId !== trip.id || trip.status !== "in_progress") throw new Error("Проверьте выбранный рейс перед отправкой");
       const file = els.endOdometerPhoto.files[0];
       validateQueuedFile(file);
+      const draft = { clientMutationId: mutationId(), unloadedAt: localDateTimeToIso(els.unloadedAt.value), odometerKm: Number(els.endOdometer.value) };
       const location = await currentLocation();
       const operation = await enqueueDriverOperation({
         ownerUserId: state.user.id,
@@ -953,9 +1049,7 @@ function bindEvents() {
         attachmentKind: "odometer_end",
         file,
         payload: {
-          clientMutationId: mutationId(),
-          unloadedAt: localDateTimeToIso(els.unloadedAt.value),
-          odometerKm: Number(els.endOdometer.value),
+          ...draft,
           ...location
         }
       });
@@ -975,8 +1069,16 @@ function bindEvents() {
       return;
     }
     await withButton(els.saveDriverExpense, "Сохраняем...", async () => {
+      if (els.expenseForm.dataset.tripId !== trip.id) throw new Error("Проверьте выбранный рейс перед отправкой");
       const receiptFile = els.expenseReceipt.files[0];
       validateQueuedFile(receiptFile);
+      const draft = {
+        clientMutationId: mutationId(), amountKopecks: rublesToKopecks(els.expenseAmount.value),
+        category: els.expenseCategory.value, paymentMethod: els.expensePaymentMethod.value,
+        paymentSource: els.expensePaymentSource.value, supplier: els.expenseSupplier.value,
+        description: els.expenseDescription.value, occurredAt: localDateTimeToIso(els.expenseOccurredAt.value),
+        locationText: els.expenseLocation.value
+      };
       const location = await currentLocation();
       const operation = await enqueueDriverOperation({
         ownerUserId: state.user.id,
@@ -985,15 +1087,7 @@ function bindEvents() {
         attachmentKind: "expense_receipt",
         file: receiptFile,
         payload: {
-          clientMutationId: mutationId(),
-          amountKopecks: rublesToKopecks(els.expenseAmount.value),
-          category: els.expenseCategory.value,
-          paymentMethod: els.expensePaymentMethod.value,
-          paymentSource: els.expensePaymentSource.value,
-          supplier: els.expenseSupplier.value,
-          description: els.expenseDescription.value,
-          occurredAt: localDateTimeToIso(els.expenseOccurredAt.value),
-          locationText: els.expenseLocation.value,
+          ...draft,
           ...location
         }
       });
@@ -1004,6 +1098,16 @@ function bindEvents() {
       await afterOperationQueued("Расход сохранён на телефоне");
     });
   });
+}
+
+function openCompleteTripForm() {
+  if (selectedTrip()?.status !== "in_progress" || state.syncing || rejectedQueuedOperation()) return;
+  switchTab("trip");
+  applyDriverRoute({ scroll: false });
+  els.tripDetail.classList.add("completion-expanded", "action-expanded");
+  els.completeTripShortcut.setAttribute("aria-expanded", "true");
+  scrollIntoViewRespectingMotion(els.completeTripForm);
+  document.getElementById("completeTripHeading").focus({ preventScroll: true });
 }
 
 function openExpenseForm(openCamera) {
@@ -1099,6 +1203,7 @@ async function afterOperationQueued(message) {
 
 async function flushPendingOperations() {
   if (!state.user?.id || !navigator.onLine || state.syncing) return;
+  if (state.pendingCount === 0) return;
   state.syncing = true;
   setNetworkStatus(!state.offline);
   render();
@@ -1183,6 +1288,7 @@ function applyDriverRoute({ scroll = true, replaceInvalid = false } = {}) {
     tab.setAttribute("aria-selected", String(active));
     tab.tabIndex = active ? 0 : -1;
   });
+  updateTabStops(els.tabs, route === "expense" ? document.querySelector("#driverTabJournal") : null);
   els.panels.forEach((panel) => {
     const active = panel.dataset.driverPanel === target;
     panel.classList.toggle("active", active);
@@ -1194,7 +1300,7 @@ function applyDriverRoute({ scroll = true, replaceInvalid = false } = {}) {
 
 function handleDriverTabKeydown(event) {
   if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
-  const tabs = [...els.tabs].filter((tab) => !tab.hidden);
+  const tabs = [...els.tabs].filter((tab) => !tab.hidden && tab.getClientRects().length > 0);
   const index = tabs.indexOf(event.currentTarget);
   if (index < 0) return;
   event.preventDefault();
@@ -1216,6 +1322,11 @@ function scrollIntoViewRespectingMotion(element) {
 }
 
 async function withButton(button, pendingLabel, action) {
+  const form = button?.form;
+  if (!validateForm(form)) return;
+  const queuesOperation = [els.startTripForm, els.completeTripForm, els.expenseForm].includes(form);
+  if (queuesOperation && queuingOperation) return;
+  if (queuesOperation) queuingOperation = true;
   if (!button) return action();
   const label = button.textContent;
   button.disabled = true;
@@ -1224,8 +1335,10 @@ async function withButton(button, pendingLabel, action) {
   try {
     await action();
   } catch (error) {
+    showFormError(form, error);
     showToast(els.toast, error.message, true);
   } finally {
+    if (queuesOperation) queuingOperation = false;
     button.disabled = false;
     button.removeAttribute("aria-busy");
     button.textContent = label;
@@ -1261,7 +1374,7 @@ async function changeOwnPassword() {
     showToast(els.toast, `Сначала отправьте или исправьте очередь: ${pending}`, true);
     return;
   }
-  const values = await requestDriverAction({
+  await requestDriverAction({
     eyebrow: "Безопасность",
     title: "Сменить пароль",
     description: "После сохранения потребуется войти заново.",
@@ -1269,20 +1382,17 @@ async function changeOwnPassword() {
     fields: [
       { name: "currentPassword", label: "Текущий пароль", type: "password", autocomplete: "current-password", required: true },
       { name: "newPassword", label: "Новый пароль", type: "password", autocomplete: "new-password", minLength: 10, required: true, hint: "Не менее 10 символов." }
-    ]
+    ],
+    onSubmit: async (values) => {
+      await api("/api/me/password", {
+        method: "POST",
+        body: { currentPassword: values.currentPassword, newPassword: values.newPassword }
+      });
+      await clearDriverOperations(state.user?.id);
+      clearDriverLocalData();
+      location.replace("/login.html");
+    }
   });
-  if (!values) return;
-  try {
-    await api("/api/me/password", {
-      method: "POST",
-      body: { currentPassword: values.currentPassword, newPassword: values.newPassword }
-    });
-    await clearDriverOperations(state.user?.id);
-    clearDriverLocalData();
-    location.replace("/login.html");
-  } catch (error) {
-    showToast(els.toast, error.message, true);
-  }
 }
 
 function setDefaultDateTimes() {

@@ -1,0 +1,95 @@
+- banner:
+  - img "ANB Group"
+  - heading "ANB Group · демо" [level=1]
+  - paragraph: Кабинет офиса
+  - tablist "Разделы":
+    - tab "Обзор"
+    - tab "Рейсы" [active] [selected]
+    - tab "Расходы"
+    - tab "Водители"
+    - tab "Автопарк"
+    - tab "Заказчики"
+    - tab "Доходность"
+    - tab "Настройки"
+  - generic: Данные защищены
+  - generic "Аккаунт"
+- main:
+  - generic: Что найти или сделать?
+  - searchbox "Что найти или сделать?"
+  - generic "Быстрый поиск":
+    - button "Рейс"
+    - button "Заказчик"
+    - button "Водитель"
+    - button "Машина"
+  - button "Открыть уведомления": Уведомления
+  - navigation "Быстрые действия":
+    - button "Создать рейс"
+    - button "Записать оплату"
+    - button "Перевести водителю"
+    - button "Добавить расход"
+  - tabpanel "Рейсы":
+    - paragraph: Финансовый контроль
+    - heading "Рейсы" [level=2]
+    - generic: Поиск рейса
+    - searchbox "Поиск рейса"
+    - generic: Статус рейса
+    - combobox "Статус рейса":
+      - option "Все статусы" [selected]
+      - option "Назначенные"
+      - option "Ожидают погрузки"
+      - option "Выполняются"
+      - option "Ожидают проверки"
+      - option "Требуют пояснения"
+      - option "Подтверждённые"
+      - option "Закрытые"
+    - article:
+      - generic: Рейс QA-20261112
+      - strong: Волга Монтаж
+      - strong: QA Москва · тестовый рейс → QA Тула · тестовый рейс
+      - generic: 12 ноября 2026 г.
+      - strong: Иванов Иван Иванович
+      - generic: КамАЗ К5 · 4 осей
+      - generic: Назначен
+      - generic: Рейс ещё не завершён
+      - button "Открыть рейс QA-20261112": Открыть
+    - article:
+      - generic: Рейс ANB-0261
+      - strong: ТрансСтрой
+      - strong: Московская область, Подольск → Республика Татарстан, Нижнекамск
+      - generic: 26 октября 2026 г.
+      - strong: Иванов Иван Иванович
+      - generic: КамАЗ К5 · 4 осей
+      - generic: Подтверждён
+      - generic: 210 000 ₽
+      - button "Открыть рейс ANB-0261": Открыть
+    - article:
+      - generic: Рейс ANB-0265
+      - strong: Север Проект
+      - strong: Санкт-Петербург, промзона Парнас → Архангельск → Вологда
+      - generic: 13 ноября 2026 г.
+      - strong: Иванов Иван Иванович
+      - generic: КамАЗ К5 · 4 осей
+      - generic: Назначен
+      - generic: Рейс ещё не завершён
+      - button "Открыть рейс ANB-0265": Открыть
+    - article:
+      - generic: Рейс ANB-0263
+      - strong: Волга Монтаж
+      - strong: Нижний Новгород → Екатеринбург
+      - generic: 9 ноября 2026 г.
+      - strong: Петров Пётр Сергеевич
+      - generic: Volvo FH · 5 осей
+      - generic: Выполняется
+      - generic: Рейс ещё не завершён
+      - button "Открыть рейс ANB-0263": Открыть
+    - article:
+      - generic: Рейс ANB-0262
+      - strong: Север Проект
+      - strong: Самара → Ростов-на-Дону
+      - generic: 4 ноября 2026 г.
+      - strong: Сидоров Алексей Викторович
+      - generic: Scania R500 · 6 осей
+      - generic: Ожидает проверки
+      - generic: 380 000 ₽
+      - button "Открыть рейс ANB-0262": Открыть
+- status: Оплата учтена

@@ -1,0 +1,60 @@
+{
+  "passed": true,
+  "trip": {
+    "id": "trp_5aec076e-840e-4452-a020-99dc759d5d1c",
+    "number": "QA-20261112",
+    "status": "confirmed",
+    "agreed_rate_kopecks": 1000000
+  },
+  "expenses": [
+    {
+      "amount_kopecks": 5100,
+      "status": "confirmed",
+      "description": "QA queued while demo server unavailable"
+    },
+    {
+      "amount_kopecks": 25050,
+      "status": "confirmed",
+      "description": "QA тестовый расход водителя"
+    }
+  ],
+  "accruals": [
+    {
+      "accrual_type": "salary",
+      "balance_effect_kopecks": 120000
+    },
+    {
+      "accrual_type": "daily",
+      "balance_effect_kopecks": 150000
+    }
+  ],
+  "adjustments": [
+    {
+      "amount_kopecks": 10000,
+      "reason": "QA тест доплаты в демонстрационной базе"
+    }
+  ],
+  "payments": [
+    {
+      "amount_kopecks": 100000
+    }
+  ],
+  "odometer": [
+    {
+      "reading_type": "end",
+      "entered_value_km": 600100
+    },
+    {
+      "reading_type": "start",
+      "entered_value_km": 600000
+    }
+  ],
+  "totalsKopecks": {
+    "finalRate": 1010000,
+    "expenses": 30150,
+    "compensation": 270000,
+    "receivable": 910000,
+    "grossProfit": 709850
+  },
+  "note": "Read-only verification of the demo browser workflow; no production database opened."
+}

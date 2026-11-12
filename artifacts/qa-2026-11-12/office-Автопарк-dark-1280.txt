@@ -1,0 +1,98 @@
+- banner:
+  - img "ANB Group"
+  - heading "ANB Group · демо" [level=1]
+  - paragraph: Кабинет офиса
+  - tablist "Разделы":
+    - tab "Обзор"
+    - tab "Рейсы"
+    - tab "Расходы"
+    - tab "Водители"
+    - tab "Автопарк" [active] [selected]
+    - tab "Заказчики"
+    - tab "Доходность"
+    - tab "Настройки"
+  - generic: Данные защищены
+  - generic "Аккаунт"
+- main:
+  - generic: Что найти или сделать?
+  - searchbox "Что найти или сделать?"
+  - generic "Быстрый поиск":
+    - button "Рейс"
+    - button "Заказчик"
+    - button "Водитель"
+    - button "Машина"
+  - button "Открыть уведомления": Уведомления
+  - navigation "Быстрые действия":
+    - button "Создать рейс"
+    - button "Записать оплату"
+    - button "Перевести водителю"
+    - button "Добавить расход"
+  - tabpanel "Автопарк":
+    - paragraph: Транспорт и составы
+    - heading "Автопарк" [level=2]
+    - generic "Разделы автопарка":
+      - button "Сцепки"
+      - button "Тягачи и тралы"
+      - button "Постоянные расходы"
+    - paragraph: Текущий состав
+    - heading "Сцепки" [level=2]
+    - heading "Создать сцепку" [level=2]
+    - generic: Название
+    - textbox "Название":
+      - /placeholder: К5 + трал 4 оси
+    - generic: Тягач
+    - combobox "Тягач":
+      - option "Нет свободных тягачей" [selected]
+    - generic: Трал
+    - combobox "Трал":
+      - option "Нет свободных тралов" [selected]
+    - generic: Водитель
+    - combobox "Водитель":
+      - option "Пока без водителя" [selected]
+    - button "Создать сцепку"
+    - heading "Изменить состав сцепки" [level=2]
+    - paragraph: Завершённые рейсы сохранят прежний состав. Ещё не начатые рейсы будут безопасно переназначены новому водителю и составу.
+    - generic: Сцепка
+    - combobox "Сцепка":
+      - option "MAN TGX · 4 осей" [selected]
+      - option "Mercedes-Benz Actros · 5 осей"
+      - option "Scania R500 · 6 осей"
+      - option "Volvo FH · 5 осей"
+      - option "КамАЗ К5 · 4 осей"
+    - generic: Тягач
+    - combobox "Тягач":
+      - option "MAN TGX · А404АА77" [selected]
+    - generic: Трал
+    - combobox "Трал":
+      - option "ЧМЗАП 9990 · В404ВВ77" [selected]
+    - generic: Водитель
+    - combobox "Водитель":
+      - option "Пока без водителя"
+      - option "Смирнов Николай Андреевич" [selected]
+    - button "Сохранить новый состав"
+    - article:
+      - strong: MAN TGX · 4 осей
+      - generic: MAN TGX · А404АА77
+      - generic: ЧМЗАП 9990 · В404ВВ77
+      - generic: Смирнов Николай Андреевич
+    - article:
+      - strong: Mercedes-Benz Actros · 5 осей
+      - generic: Mercedes-Benz Actros · А505АА77
+      - generic: Broshuis SL · В505ВВ77
+      - generic: Орлов Михаил Олегович
+    - article:
+      - strong: Scania R500 · 6 осей
+      - generic: Scania R500 · А303АА77
+      - generic: Goldhofer STZ · В303ВВ77
+      - generic: Сидоров Алексей Викторович
+    - article:
+      - strong: Volvo FH · 5 осей
+      - generic: Volvo FH · А202АА77
+      - generic: Faymonville MultiMAX · В202ВВ77
+      - generic: Петров Пётр Сергеевич
+    - article:
+      - strong: КамАЗ К5 · 4 осей
+      - generic: КамАЗ К5 · А101АА77
+      - generic: Тверьстроймаш 99393 · В101ВВ77
+      - generic: Иванов Иван Иванович
+- status: Оплата учтена

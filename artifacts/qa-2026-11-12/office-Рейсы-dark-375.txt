@@ -1,0 +1,101 @@
+- banner:
+  - img "ANB Group"
+  - heading "ANB Group · демо" [level=1]
+  - paragraph: Кабинет офиса
+  - tablist "Разделы":
+    - tab "Обзор" [selected]
+    - tab "Рейсы" [active]
+    - tab "Расходы"
+  - generic "Ещё":
+    - generic: Ещё
+  - generic "Аккаунт"
+- main:
+  - searchbox "Что найти или сделать?"
+  - generic "Быстрый поиск":
+    - button "Рейс"
+    - button "Заказчик"
+    - button "Водитель"
+    - button "Машина"
+  - button "Открыть уведомления": Уведомления
+  - navigation "Быстрые действия":
+    - button "Создать рейс"
+    - button "Записать оплату"
+    - button "Перевести водителю"
+    - button "Добавить расход"
+  - tabpanel "Обзор":
+    - region "Сегодня":
+      - heading "Сегодня" [level=2]
+      - generic "Фильтр задач":
+        - button "Все"
+        - button "Срочно"
+        - button "Сегодня"
+        - button "Позже"
+      - article:
+        - generic: Требует проверки
+        - strong: Расход 8 900 ₽ ждёт проверки
+        - generic: Запчасти · ANB-0263
+        - button "Проверить"
+      - article:
+        - generic: Требует проверки
+        - strong: Расход 32 000 ₽ ждёт проверки
+        - generic: Ремонт · ANB-0262
+        - button "Проверить"
+      - article:
+        - generic: Готов к проверке
+        - strong: ANB-0262 готов к подтверждению
+        - generic: Самара → Ростов-на-Дону · Сидоров Алексей Викторович
+        - button "Открыть"
+      - article:
+        - generic: Назначен
+        - strong: QA-20261112 · QA Москва · тестовый рейс → QA Тула · тестовый рейс
+        - generic: Иванов Иван Иванович · КамАЗ К5 · А101АА77
+        - button "Открыть"
+      - article:
+        - generic: Назначен
+        - strong: ANB-0265 · Санкт-Петербург, промзона Парнас → Архангельск → Вологда
+        - generic: Иванов Иван Иванович · КамАЗ К5 · А101АА77
+        - button "Открыть"
+      - button "Смотреть все задачи"
+    - region "Контроль":
+      - heading "Контроль" [level=2]
+      - button "3 активных рейса Открыть":
+        - strong: "3"
+        - generic: активных рейса
+        - generic: Открыть
+      - button "2 операции требуют проверки Открыть":
+        - strong: "2"
+        - generic: операции требуют проверки
+        - generic: Открыть
+      - button "590 000 ₽ ожидаем от заказчиков Открыть":
+        - strong: 590 000 ₽
+        - generic: ожидаем от заказчиков
+        - generic: Открыть
+    - region "Последние":
+      - heading "Последние" [level=2]
+      - strong: QA-20261112
+      - generic: Назначен
+      - strong: ANB-0261
+      - generic: Подтверждён
+      - strong: ANB-0265
+      - generic: Назначен
+    - region "Недавние объекты":
+      - heading "Недавние объекты" [level=2]
+      - button "QA-20261112 Волга Монтаж":
+        - strong: QA-20261112
+        - generic: Волга Монтаж
+      - button "ANB-0261 ТрансСтрой":
+        - strong: ANB-0261
+        - generic: ТрансСтрой
+      - button "ANB-0265 Север Проект":
+        - strong: ANB-0265
+        - generic: Север Проект
+      - button "ANB-0263 Волга Монтаж":
+        - strong: ANB-0263
+        - generic: Волга Монтаж
+      - button "Иванов Иван Иванович Водитель":
+        - strong: Иванов Иван Иванович
+        - generic: Водитель
+      - button "Волга Монтаж Заказчик":
+        - strong: Волга Монтаж
+        - generic: Заказчик
+- status: Оплата учтена

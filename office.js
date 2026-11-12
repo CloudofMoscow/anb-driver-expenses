@@ -9,9 +9,11 @@ import {
   rublesToKopecks,
   showToast,
   uploadAttachment
-} from "./api-client.js";
-import { submitIdempotentMutation } from "./financial-mutation.js";
-import { initializePushNotifications } from "./push-notifications.js";
+} from "./api-client.js?v=82";
+import { submitIdempotentMutation } from "./financial-mutation.js?v=82";
+import { initializePushNotifications } from "./push-notifications.js?v=82";
+import { captureUiState, updateTabStops } from "./ui-state.js?v=82";
+import { installFormFeedback, showFormError, validateForm } from "./form-feedback.js?v=82";
 
 const els = {
   officeName: document.querySelector("#officeName"),
@@ -218,6 +220,10 @@ let paymentTrip = null;
 let report = null;
 let refreshing = false;
 let selectedTripId = null;
+let officeActionSubmit = null;
+let officeActionPending = false;
+let workspaceExpanded = false;
+let reportStale = true;
 let currentOfficeRoute = "overview";
 let actionDialogResolver = null;
 let workspaceFilter = "all";
@@ -246,7 +252,6 @@ async function init() {
   els.recurringCostFrom.value = localMonthValue(new Date());
   await refresh();
   applyOfficeRoute({ scroll: false, replaceInvalid: true });
-  await loadReport();
   const serviceWorkerRegistration = await registerServiceWorker();
   if (serviceWorkerRegistration) {
     await initializePushNotifications({
@@ -258,17 +263,21 @@ async function init() {
   window.setInterval(refreshWhenVisible, 30_000);
 }
 
-async function refresh() {
+async function refresh({ background = false } = {}) {
   if (refreshing) return;
   refreshing = true;
   try {
-    const nextState = await api("/api/office/bootstrap");
+    const nextState = await api("/api/office/bootstrap", { skipUnchanged: background });
+    if (!nextState) return;
+    const restoreUi = captureUiState();
     const drafts = captureDirtyFormDrafts();
     state = { ...state, ...nextState };
+    reportStale = true;
     els.officeName.textContent = state.organization?.name || state.user.fullName;
     render();
     restoreDirtyFormDrafts(drafts);
-    if (report) await loadReport();
+    if (report && currentOfficeRoute === "profitability") await loadReport();
+    restoreUi();
   } catch (error) {
     showToast(els.toast, error.message, true);
   } finally {
@@ -277,7 +286,7 @@ async function refresh() {
 }
 
 async function refreshWhenVisible() {
-  if (document.visibilityState === "visible" && navigator.onLine) await refresh();
+  if (document.visibilityState === "visible" && navigator.onLine) await refresh({ background: true });
 }
 
 function render() {
@@ -307,6 +316,7 @@ function renderOfficeNotifications() {
   unread.slice(0, 20).forEach((notification) => {
     const card = document.createElement("article");
     card.className = "notification-card";
+    card.dataset.uiKey = `office-notification-${notification.id}`;
     card.innerHTML = `
       <div>
         <strong>${escapeHtml(notification.title)}</strong>
@@ -339,6 +349,7 @@ function renderAccounts() {
     const active = Boolean(account.is_active);
     const card = document.createElement("article");
     card.className = `compact-info-card account-card${active ? "" : " reversed-entry"}`;
+    card.dataset.uiKey = `account-${account.id}`;
     card.innerHTML = `
       <div class="trip-card-heading">
         <div><strong>${escapeHtml(account.full_name)}</strong><span>${escapeHtml(account.roleLabel)} · ${escapeHtml(account.login)}</span></div>
@@ -357,7 +368,7 @@ function renderAccounts() {
 }
 
 async function resetAccountPassword(account) {
-  const values = await requestOfficeAction({
+  await requestOfficeAction({
     eyebrow: "Доступ к системе",
     title: "Сменить пароль",
     description: `${account.full_name}. После сохранения прежние сессии пользователя завершатся.`,
@@ -370,26 +381,23 @@ async function resetAccountPassword(account) {
       autocomplete: "new-password",
       required: true,
       hint: "Не менее 10 символов."
-    }]
-  });
-  if (!values) return;
-  try {
-    const result = await api(`/api/office/users/${encodeURIComponent(account.id)}/password`, {
-      method: "POST",
-      body: { password: values.password, reason: "Смена пароля через кабинет офиса" }
-    });
-    if (result.signedOut) {
-      location.replace("/login.html");
-      return;
+    }],
+    onSubmit: async (values) => {
+      const result = await api(`/api/office/users/${encodeURIComponent(account.id)}/password`, {
+        method: "POST",
+        body: { password: values.password, reason: "Смена пароля через кабинет офиса" }
+      });
+      if (result.signedOut) {
+        location.replace("/login.html");
+        return;
+      }
+      showToast(els.toast, "Пароль изменён, прежние сессии завершены");
     }
-    showToast(els.toast, "Пароль изменён, прежние сессии завершены");
-  } catch (error) {
-    showToast(els.toast, error.message, true);
-  }
+  });
 }
 
 async function toggleAccount(account, active) {
-  const values = await requestOfficeAction({
+  await requestOfficeAction({
     eyebrow: "Учётная запись",
     title: active ? "Включить доступ?" : "Отключить доступ?",
     description: active
@@ -403,20 +411,17 @@ async function toggleAccount(account, active) {
       type: "textarea",
       required: true,
       maxLength: 1000
-    }]
+    }],
+    onSubmit: async (values) => {
+      const reason = active ? "Повторное включение через кабинет офиса" : values.reason;
+      await api(`/api/office/users/${encodeURIComponent(account.id)}/active`, {
+        method: "POST",
+        body: { active, reason }
+      });
+      await refresh();
+      showToast(els.toast, active ? "Доступ включён" : "Доступ отключён на всех устройствах");
+    }
   });
-  if (!values) return;
-  const reason = active ? "Повторное включение через кабинет офиса" : values.reason;
-  try {
-    await api(`/api/office/users/${encodeURIComponent(account.id)}/active`, {
-      method: "POST",
-      body: { active, reason }
-    });
-    await refresh();
-    showToast(els.toast, active ? "Доступ включён" : "Доступ отключён на всех устройствах");
-  } catch (error) {
-    showToast(els.toast, error.message, true);
-  }
 }
 
 function renderSummary() {
@@ -534,30 +539,46 @@ function renderOfficeWorkspace() {
   const overdueTrips = receivableTrips.filter((trip) => Number(trip.days_overdue || 0) > 0);
   const reviewTrips = state.trips.filter((trip) => ["pending_review", "needs_explanation"].includes(trip.status));
   const tasks = [
-    ...overdueTrips.slice(0, 2).map((trip) => ({
+    ...overdueTrips.map((trip) => ({
+      key: `task-overdue-${trip.id}`,
       tone: "urgent", label: "Просрочено", title: `${trip.customer_name} — оплата просрочена на ${trip.days_overdue} дн.`,
       meta: `${trip.number || "Рейс"} · ${formatRubles(trip.receivable_kopecks)}`, action: "Напомнить", route: "customers"
     })),
-    ...pendingExpenses.slice(0, 2).map((expense) => ({
+    ...pendingExpenses.map((expense) => ({
+      key: `task-expense-${expense.id}`,
       tone: "today", label: "Требует проверки", title: `Расход ${formatRubles(expense.amount_kopecks)} ждёт проверки`,
       meta: `${expense.category} · ${state.trips.find((trip) => trip.id === expense.trip_id)?.number || "Рейс"}`, action: "Проверить", route: "expenses"
     })),
-    ...reviewTrips.slice(0, 2).map((trip) => ({
+    ...reviewTrips.map((trip) => ({
+      key: `task-review-${trip.id}`,
       tone: "today", label: "Готов к проверке", title: `${trip.number || "Рейс"} готов к подтверждению`,
       meta: `${tripRouteText(trip)} · ${trip.driver_name}`, action: "Открыть", route: `trips/${trip.id}`
     })),
-    ...activeTrips.slice(0, 2).map((trip) => ({
+    ...activeTrips.map((trip) => ({
+      key: `task-active-${trip.id}`,
       tone: "later", label: statusLabel(trip.status), title: `${trip.number || "Рейс"} · ${tripRouteText(trip)}`,
       meta: `${trip.driver_name} · ${trip.tractor_label}`, action: "Открыть", route: `trips/${trip.id}`
     }))
   ];
   const visibleTasks = workspaceFilter === "all" ? tasks : tasks.filter((task) => task.tone === workspaceFilter);
-  els.workspaceTaskList.innerHTML = visibleTasks.length ? visibleTasks.slice(0, 6).map((task) => `
-    <article class="workspace-task" data-tone="${escapeHtml(task.tone)}">
+  els.workspaceTaskList.innerHTML = visibleTasks.length ? (workspaceExpanded ? visibleTasks : visibleTasks.slice(0, 6)).map((task) => `
+    <article class="workspace-task" data-ui-key="${escapeHtml(task.key)}" data-tone="${escapeHtml(task.tone)}">
       <div><span>${escapeHtml(task.label)}</span><strong>${escapeHtml(task.title)}</strong><small>${escapeHtml(task.meta)}</small></div>
       <button type="button" data-workspace-route="${escapeHtml(task.route)}">${escapeHtml(task.action)}</button>
     </article>
-  `).join("") : '<p class="workspace-empty">В этой группе задач сейчас нет.</p>';
+  `).join("") : `<p class="workspace-empty">${tasks.length ? "В этой группе задач сейчас нет" : "Сейчас задач нет"}</p>${tasks.length ? '<button type="button" data-show-all-tasks>Показать все задачи</button>' : ""}`;
+  els.workspaceAllTasksButton.hidden = tasks.length === 0 || (!workspaceExpanded && tasks.length <= 6 && workspaceFilter === "all");
+  els.workspaceAllTasksButton.textContent = workspaceExpanded ? "Свернуть список" : "Смотреть все задачи";
+  els.workspaceAllTasksButton.setAttribute("aria-expanded", String(workspaceExpanded));
+  els.workspaceAllTasksButton.setAttribute("aria-controls", els.workspaceTaskList.id);
+  document.querySelectorAll("[data-workspace-filter]").forEach((button) => {
+    const active = button.dataset.workspaceFilter === workspaceFilter;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", String(active));
+  });
+  els.workspaceTaskList.querySelector("[data-show-all-tasks]")?.addEventListener("click", () => {
+    workspaceFilter = "all"; workspaceExpanded = true; renderOfficeWorkspace(); els.workspaceAllTasksButton.focus();
+  });
   els.workspaceTaskList.querySelectorAll("[data-workspace-route]").forEach((button) => {
     button.addEventListener("click", () => navigateOffice(button.dataset.workspaceRoute));
   });
@@ -664,6 +685,7 @@ function renderTrips() {
   trips.forEach((trip) => {
     const card = document.createElement("article");
     card.className = "trip-list-card";
+    card.dataset.uiKey = `trip-${trip.id}`;
     card.innerHTML = `
       <div class="trip-list-main">
         <div class="trip-list-number">
@@ -710,6 +732,7 @@ function renderTripDetail(trip) {
     : "—";
   const documentCount = Number(trip.document_count || 0);
   const card = document.createElement("article");
+  card.dataset.uiKey = `trip-${trip.id}`;
   card.className = "trip-office-card trip-detail-card";
   card.innerHTML = `
     <div class="trip-card-heading">
@@ -795,7 +818,7 @@ function bindTripDetailActions(card, trip) {
 
 async function editTripRoute(trip) {
   const currentStops = (trip.additional_unloading_stops || []).map((stop) => stop.address).join("\n");
-  const values = await requestOfficeAction({
+  await requestOfficeAction({
     eyebrow: trip.number ? `Рейс ${trip.number}` : "Рейс",
     title: "Изменить маршрут",
     description: tripRouteText(trip),
@@ -828,29 +851,26 @@ async function editTripRoute(trip) {
         required: true,
         maxLength: 1000
       }
-    ]
+    ],
+    onSubmit: async (values) => {
+      await api(`/api/office/trips/${encodeURIComponent(trip.id)}/route`, {
+        method: "POST",
+        body: {
+          unloadingAddress: values.unloadingAddress.trim(),
+          unloadingAddressIsApproximate: values.approximate,
+          additionalUnloadingStops: values.additionalStops.split(/\r?\n/).map((address) => address.trim()).filter(Boolean),
+          driverInstructions: trip.driver_instructions || "",
+          reason: values.reason.trim()
+        }
+      });
+      await refresh();
+      showToast(els.toast, "Маршрут обновлён, водитель получил уведомление");
+    }
   });
-  if (!values) return;
-  try {
-    await api(`/api/office/trips/${encodeURIComponent(trip.id)}/route`, {
-      method: "POST",
-      body: {
-        unloadingAddress: values.unloadingAddress.trim(),
-        unloadingAddressIsApproximate: values.approximate,
-        additionalUnloadingStops: values.additionalStops.split(/\r?\n/).map((address) => address.trim()).filter(Boolean),
-        driverInstructions: trip.driver_instructions || "",
-        reason: values.reason.trim()
-      }
-    });
-    await refresh();
-    showToast(els.toast, "Маршрут обновлён, водитель получил уведомление");
-  } catch (error) {
-    showToast(els.toast, error.message, true);
-  }
 }
 
 async function correctTripMeasurements(trip) {
-  const values = await requestOfficeAction({
+  await requestOfficeAction({
     eyebrow: trip.number ? `Рейс ${trip.number}` : "Рейс",
     title: "Исправить пробег и время",
     description: "Исходные значения сохранятся в истории изменений.",
@@ -861,31 +881,27 @@ async function correctTripMeasurements(trip) {
       { name: "loadedAt", label: "Дата и время загрузки", type: "datetime-local", value: isoToLocalDateTimeValue(trip.loaded_at), required: true },
       { name: "unloadedAt", label: "Дата и время разгрузки", type: "datetime-local", value: isoToLocalDateTimeValue(trip.unloaded_at), required: true },
       { name: "reason", label: "Причина исправления", type: "textarea", required: true, maxLength: 1000 }
-    ]
-  });
-  if (!values) return;
-  const loadedAt = new Date(values.loadedAt);
-  const unloadedAt = new Date(values.unloadedAt);
-  if (Number.isNaN(loadedAt.getTime()) || Number.isNaN(unloadedAt.getTime())) {
-    showToast(els.toast, "Проверьте дату и время", true);
-    return;
-  }
-  try {
-    await api(`/api/office/trips/${encodeURIComponent(trip.id)}/measurements`, {
-      method: "POST",
-      body: {
-        startOdometerKm: Number(values.startOdometer),
-        endOdometerKm: Number(values.endOdometer),
-        loadedAt: loadedAt.toISOString(),
-        unloadedAt: unloadedAt.toISOString(),
-        reason: values.reason.trim()
+    ],
+    onSubmit: async (values) => {
+      const loadedAt = new Date(values.loadedAt);
+      const unloadedAt = new Date(values.unloadedAt);
+      if (Number.isNaN(loadedAt.getTime()) || Number.isNaN(unloadedAt.getTime())) {
+        throw new Error("Проверьте дату и время");
       }
-    });
-    await refresh();
-    showToast(els.toast, "Пробег и время исправлены с записью в историю");
-  } catch (error) {
-    showToast(els.toast, error.message, true);
-  }
+      await api(`/api/office/trips/${encodeURIComponent(trip.id)}/measurements`, {
+        method: "POST",
+        body: {
+          startOdometerKm: Number(values.startOdometer),
+          endOdometerKm: Number(values.endOdometer),
+          loadedAt: loadedAt.toISOString(),
+          unloadedAt: unloadedAt.toISOString(),
+          reason: values.reason.trim()
+        }
+      });
+      await refresh();
+      showToast(els.toast, "Пробег и время исправлены с записью в историю");
+    }
+  });
 }
 
 function tripExpenseHistoryMarkup(trip) {
@@ -1083,6 +1099,7 @@ function renderPendingExpenses() {
     const riskFlags = parseRiskFlags(expense.risk_flags_json);
     const card = document.createElement("article");
     card.className = "expense-card";
+    card.dataset.uiKey = `office-expense-${expense.id}`;
     card.innerHTML = `
       <div class="expense-card-main">
         <div class="expense-title"><strong>${escapeHtml(expense.category)}</strong><span>${escapeHtml(expense.driver_name)} · ${escapeHtml(formatDateTime(expense.occurred_at || expense.created_at))}</span></div>
@@ -1134,6 +1151,7 @@ function renderRecurringCosts() {
   state.recurringCosts.forEach((cost) => {
     const card = document.createElement("article");
     card.className = `compact-info-card recurring-cost-card${cost.reversed_at ? " reversed-record" : ""}`;
+    card.dataset.uiKey = `recurring-cost-${cost.id}`;
     const allocation = cost.allocation_mode === "monthly"
       ? `${formatRubles(cost.total_amount_kopecks)} каждый месяц`
       : `${formatRubles(cost.total_amount_kopecks)} / ${cost.allocation_months} мес.`;
@@ -1156,6 +1174,7 @@ function renderCompanyExpenses() {
   state.companyExpenses.forEach((expense) => {
     const card = document.createElement("article");
     card.className = `compact-info-card company-expense-card${expense.reversed_at ? " reversed-record" : ""}`;
+    card.dataset.uiKey = `company-expense-${expense.id}`;
     const scope = expense.scope_type === "rig"
       ? `Сцепка: ${expense.rig_name || "не найдена"}`
       : "Компания в целом";
@@ -1219,6 +1238,7 @@ function renderReport() {
   report.rigs.forEach((rig) => {
     const card = document.createElement("article");
     card.className = "trip-office-card report-rig-card report-rig-row";
+    card.dataset.uiKey = `report-rig-${rig.rigId}`;
     card.innerHTML = `
       <div class="trip-card-heading">
         <div><p class="section-kicker">Сцепка</p><h3>${escapeHtml(rig.rigName)}</h3><span>${rig.tripCount} рейс(а) · ${rig.distanceKm} км</span></div>
@@ -1268,6 +1288,7 @@ async function loadReport() {
   if (els.reportRig.value) params.set("rigId", els.reportRig.value);
   try {
     report = await api(`/api/office/report?${params}`);
+    reportStale = false;
     renderReport();
   } catch (error) {
     showToast(els.toast, error.message, true);
@@ -1321,6 +1342,7 @@ function renderCustomers() {
     );
     const card = document.createElement("article");
     card.className = "customer-card";
+    card.dataset.uiKey = `customer-${customer.id}`;
     card.innerHTML = `
       <div class="trip-card-heading">
         <div><h3>${escapeHtml(customer.short_name)}</h3><p>${escapeHtml(customer.inn ? `ИНН ${customer.inn}` : "ИНН не указан")}</p></div>
@@ -1368,6 +1390,7 @@ function renderDriverSettlements() {
   state.driverSettlements.forEach((settlement) => {
     const card = document.createElement("article");
     card.className = "trip-office-card settlement-card";
+    card.dataset.uiKey = `settlement-${settlement.driverId}`;
     const balance = settlementBalanceText(settlement);
     card.innerHTML = `
       <div class="trip-card-heading">
@@ -1408,6 +1431,7 @@ function renderDriverTransfers() {
   state.driverTransfers.forEach((transfer) => {
     const card = document.createElement("article");
     card.className = `compact-info-card transfer-card ${transfer.reversed_at ? "reversed-entry" : ""}`;
+    card.dataset.uiKey = `transfer-${transfer.id}`;
     const allocations = transfer.allocations.map((allocation) => {
       const coverage = allocation.coverage_through ? ` по ${allocation.coverage_through}` : "";
       return `${allocationLabel(allocation.allocation_type)}: ${formatRubles(allocation.amount_kopecks)}${coverage}`;
@@ -1746,7 +1770,14 @@ function createOfficeSubview(route, nodes) {
 }
 
 function bindEvents() {
+  installFormFeedback([
+    els.recurringCostAmount, els.companyExpenseAmount, els.tripRate, els.tripSalaryRateOverride,
+    els.tripDailyRateOverride, els.companySalaryRate, els.companyDailyRate, els.driverSalaryRate,
+    els.driverDailyRate, els.transferSalaryAmount, els.transferDailyAmount, els.transferAdvanceAmount,
+    els.transferReimbursementAmount, els.paymentAmount
+  ].map((control) => [control, false]).concat([[els.driverAdjustmentAmount, true]]));
   bindFormDraftProtection();
+  window.addEventListener("resize", () => updateTabStops(els.tabs, currentOfficeRoute === "new-trip" ? document.querySelector("#officeTabTrips") : null));
   els.logoutButton.addEventListener("click", logout);
   els.changePasswordButton.addEventListener("click", changeOwnPassword);
   els.createTripShortcut.addEventListener("click", () => switchTab("new-trip"));
@@ -1773,7 +1804,11 @@ function bindEvents() {
       renderOfficeWorkspace();
     });
   });
-  els.workspaceAllTasksButton.addEventListener("click", () => switchTab("expenses"));
+  els.workspaceAllTasksButton.addEventListener("click", () => {
+    workspaceExpanded = !workspaceExpanded;
+    if (workspaceExpanded) workspaceFilter = "all";
+    renderOfficeWorkspace();
+  });
   els.cancelNewTripButton.addEventListener("click", () => switchTab("dashboard"));
   els.closeTripDetailButton.addEventListener("click", () => navigateOffice("trips"));
   els.openAllTripsButton.addEventListener("click", () => switchTab("dashboard"));
@@ -2216,60 +2251,63 @@ async function saveDriverAdjustment(event) {
 }
 
 async function reverseTransfer(transfer) {
-  const reason = await requestReason({
+  await requestOfficeAction({
     title: "Отменить перевод?",
-    description: `${formatRubles(transfer.total_amount_kopecks)} · ${formatDateTime(transfer.occurred_at)}. Запись не удалится: система добавит отменяющую отметку.`,
-    confirmLabel: "Отменить перевод"
+    destructive: true,
+    description: `${formatRubles(transfer.amount_kopecks)} · ${formatDateTime(transfer.occurred_at)}. Запись не удалится: система добавит отменяющую отметку.`,
+    confirmLabel: "Отменить перевод",
+    fields: [{ name: "reason", label: "Причина", type: "textarea", required: true, maxLength: 1000 }],
+    onSubmit: async (values) => {
+      const reason = values.reason.trim();
+
+      await api(`/api/office/driver-transfers/${transfer.id}/reverse`, {
+        method: "POST",
+        body: { reason }
+      });
+      await refresh();
+      showToast(els.toast, "Перевод отменён сторнирующей отметкой");
+    }
   });
-  if (!reason) return;
-  try {
-    await api(`/api/office/driver-transfers/${transfer.id}/reverse`, {
-      method: "POST",
-      body: { reason }
-    });
-    await refresh();
-    showToast(els.toast, "Перевод отменён сторнирующей отметкой");
-  } catch (error) {
-    showToast(els.toast, error.message, true);
-  }
 }
 
 async function reverseCompanyExpense(expense) {
-  const reason = await requestReason({
+  await requestOfficeAction({
     title: "Отменить разовый расход?",
+    destructive: true,
     description: `${expense.category} · ${formatRubles(expense.amount_kopecks)}. Запись останется в истории.`,
-    confirmLabel: "Отменить расход"
+    confirmLabel: "Отменить расход",
+    fields: [{ name: "reason", label: "Причина", type: "textarea", required: true, maxLength: 1000 }],
+    onSubmit: async (values) => {
+      const reason = values.reason.trim();
+
+      await api(`/api/office/company-expenses/${expense.id}/reverse`, {
+        method: "POST",
+        body: { reason }
+      });
+      await refresh();
+      showToast(els.toast, "Расход отменён и сохранён в истории");
+    }
   });
-  if (!reason) return;
-  try {
-    await api(`/api/office/company-expenses/${expense.id}/reverse`, {
-      method: "POST",
-      body: { reason }
-    });
-    await refresh();
-    showToast(els.toast, "Расход отменён и сохранён в истории");
-  } catch (error) {
-    showToast(els.toast, error.message, true);
-  }
 }
 
 async function reverseRecurringCost(cost) {
-  const reason = await requestReason({
+  await requestOfficeAction({
     title: "Отменить постоянный расход?",
+    destructive: true,
     description: `${cost.category} · ${formatRubles(cost.monthly_amount_kopecks || cost.total_amount_kopecks)}. Уже рассчитанные периоды останутся в истории.`,
-    confirmLabel: "Отменить расход"
+    confirmLabel: "Отменить расход",
+    fields: [{ name: "reason", label: "Причина", type: "textarea", required: true, maxLength: 1000 }],
+    onSubmit: async (values) => {
+      const reason = values.reason.trim();
+
+      await api(`/api/office/recurring-costs/${cost.id}/reverse`, {
+        method: "POST",
+        body: { reason }
+      });
+      await refresh();
+      showToast(els.toast, "Постоянный расход отменён и сохранён в истории");
+    }
   });
-  if (!reason) return;
-  try {
-    await api(`/api/office/recurring-costs/${cost.id}/reverse`, {
-      method: "POST",
-      body: { reason }
-    });
-    await refresh();
-    showToast(els.toast, "Постоянный расход отменён и сохранён в истории");
-  } catch (error) {
-    showToast(els.toast, error.message, true);
-  }
 }
 
 async function setExpenseCategoryActive(category) {
@@ -2298,6 +2336,8 @@ function bindForm(form, path, collect, successMessage) {
 }
 
 async function submitForm(button, action) {
+  const form = button?.form;
+  if (!validateForm(form)) return;
   const label = button?.textContent;
   if (button) {
     button.disabled = true;
@@ -2305,7 +2345,7 @@ async function submitForm(button, action) {
     button.textContent = "Сохраняем...";
   }
   try { await action(); }
-  catch (error) { showToast(els.toast, error.message, true); }
+  catch (error) { showFormError(form, error); showToast(els.toast, error.message, true); }
   finally {
     if (button) {
       button.disabled = false;
@@ -2322,7 +2362,7 @@ async function reviewExpense(expense, status) {
     rejected: "Отклонить расход?",
     needs_explanation: "Запросить пояснение?"
   };
-  const values = await requestOfficeAction({
+  await requestOfficeAction({
     eyebrow: `${expense.category} · ${formatRubles(expense.amount_kopecks)}`,
     title: titleByStatus[status] || "Изменить статус расхода?",
     description: expense.description || "Проверьте чек и контекст рейса перед сохранением.",
@@ -2334,15 +2374,14 @@ async function reviewExpense(expense, status) {
       type: "textarea",
       required: true,
       maxLength: 1000
-    }]
+    }],
+    onSubmit: async (values) => {
+      comment = values.comment || "";
+      await api(`/api/office/expenses/${expense.id}/review`, { method: "POST", body: { status, comment } });
+      await refresh();
+      showToast(els.toast, "Статус расхода обновлён");
+    }
   });
-  if (!values) return;
-  comment = values.comment || "";
-  try {
-    await api(`/api/office/expenses/${expense.id}/review`, { method: "POST", body: { status, comment } });
-    await refresh();
-    showToast(els.toast, "Статус расхода обновлён");
-  } catch (error) { showToast(els.toast, error.message, true); }
 }
 
 function requestOfficeAction({
@@ -2351,9 +2390,12 @@ function requestOfficeAction({
   description = "",
   confirmLabel = "Продолжить",
   destructive = false,
-  fields = []
+  fields = [],
+  onSubmit
 }) {
   if (actionDialogResolver) closeOfficeActionDialog(null);
+  officeActionSubmit = onSubmit;
+  els.actionForm.querySelector(".form-error-summary")?.remove();
   const previouslyFocused = document.activeElement;
   els.actionEyebrow.textContent = eyebrow;
   els.actionTitle.textContent = title;
@@ -2382,6 +2424,7 @@ function requestOfficeAction({
     const control = document.createElement(elementName);
     control.id = controlId;
     control.name = field.name;
+    if (field.name === "amount") control.dataset.money = "signed";
     if (elementName === "input") control.type = field.type || "text";
     if (field.inputMode) control.inputMode = field.inputMode;
     if (field.min != null) control.min = String(field.min);
@@ -2397,6 +2440,8 @@ function requestOfficeAction({
     if (field.hint) {
       const hint = document.createElement("small");
       hint.className = "field-hint";
+      hint.id = `${controlId}Hint`;
+      control.setAttribute("aria-describedby", hint.id);
       hint.textContent = field.hint;
       label.append(hint);
     }
@@ -2412,42 +2457,41 @@ function requestOfficeAction({
   });
 }
 
-async function requestReason({
-  eyebrow = "История изменений",
-  title,
-  description,
-  confirmLabel,
-  destructive = true
-}) {
-  const values = await requestOfficeAction({
-    eyebrow,
-    title,
-    description,
-    confirmLabel,
-    destructive,
-    fields: [{
-      name: "reason",
-      label: "Причина",
-      type: "textarea",
-      required: true,
-      maxLength: 1000,
-      hint: "Причина сохранится в истории и будет доступна при проверке."
-    }]
-  });
-  return values?.reason?.trim() || null;
-}
-
-function submitOfficeActionDialog(event) {
+async function submitOfficeActionDialog(event) {
   event.preventDefault();
-  if (!els.actionForm.reportValidity()) return;
+  if (officeActionPending) return;
+  if (!validateForm(els.actionForm) || !els.actionForm.reportValidity()) return;
   const values = {};
   els.actionFields.querySelectorAll("input, textarea, select").forEach((control) => {
     values[control.name] = control.type === "checkbox" ? control.checked : control.value;
   });
-  closeOfficeActionDialog(values);
+  officeActionPending = true;
+  const label = els.actionSubmit.textContent;
+  els.actionSubmit.disabled = true;
+  els.actionCancel.disabled = true;
+  els.actionSubmit.setAttribute("aria-busy", "true");
+  els.actionSubmit.textContent = "Сохраняем…";
+  els.actionError.hidden = true;
+  try {
+    await officeActionSubmit(values);
+    officeActionPending = false;
+    closeOfficeActionDialog(values);
+  } catch (error) {
+    els.actionError.textContent = error.message;
+    els.actionError.hidden = false;
+    showToast(els.toast, error.message, true);
+  } finally {
+    officeActionPending = false;
+    els.actionSubmit.disabled = false;
+    els.actionCancel.disabled = false;
+    els.actionSubmit.removeAttribute("aria-busy");
+    els.actionSubmit.textContent = label;
+    if (els.actionDialog.open && document.activeElement === document.body) els.actionSubmit.focus();
+  }
 }
 
 function closeOfficeActionDialog(result) {
+  if (officeActionPending) return;
   if (els.actionDialog.open) els.actionDialog.close();
   const resolve = actionDialogResolver;
   actionDialogResolver = null;
@@ -2534,7 +2578,7 @@ async function attachContract(trip, file, button, input) {
 }
 
 async function addAdjustment(trip) {
-  const values = await requestOfficeAction({
+  await requestOfficeAction({
     eyebrow: trip.number ? `Рейс ${trip.number}` : "Рейс",
     title: "Добавить доплату или штраф",
     description: "Положительная сумма увеличит ставку рейса, отрицательная — уменьшит. Изменение сохранится в истории.",
@@ -2542,79 +2586,79 @@ async function addAdjustment(trip) {
     fields: [
       { name: "amount", label: "Сумма со знаком, ₽", inputMode: "decimal", required: true, placeholder: "Например, -5000 или 12000" },
       { name: "reason", label: "Причина изменения", type: "textarea", required: true, maxLength: 1000 }
-    ]
+    ],
+    onSubmit: async (values) => {
+      const kopecks = signedRublesToKopecks(values.amount);
+      const draft = {
+        adjustmentType: kopecks < 0 ? "penalty" : "surcharge",
+        amountKopecks: kopecks,
+        reason: values.reason.trim()
+      };
+      await submitFinancialMutation({
+        key: `rate-adjustment:${trip.id}`,
+        draft,
+        prepareBody: async (id) => ({ ...draft, clientMutationId: id }),
+        send: (body) => api(`/api/office/trips/${trip.id}/adjustments`, { method: "POST", body })
+      });
+      await refresh();
+      showToast(els.toast, "Ставка пересчитана");
+    }
   });
-  if (!values) return;
-  try {
-    const kopecks = signedRublesToKopecks(values.amount);
-    const draft = {
-      adjustmentType: kopecks < 0 ? "penalty" : "surcharge",
-      amountKopecks: kopecks,
-      reason: values.reason.trim()
-    };
-    await submitFinancialMutation({
-      key: `rate-adjustment:${trip.id}`,
-      draft,
-      prepareBody: async (id) => ({ ...draft, clientMutationId: id }),
-      send: (body) => api(`/api/office/trips/${trip.id}/adjustments`, { method: "POST", body })
-    });
-    await refresh();
-    showToast(els.toast, "Ставка пересчитана");
-  } catch (error) { showToast(els.toast, error.message, true); }
 }
 
 async function reverseRateAdjustment(trip, adjustment) {
-  const reason = await requestReason({
+  await requestOfficeAction({
     title: "Отменить изменение ставки?",
+    destructive: true,
     description: `${adjustmentTypeLabel(adjustment.adjustment_type)} · ${formatRubles(adjustment.amount_kopecks)}. Ставка рейса будет пересчитана.`,
-    confirmLabel: "Отменить изменение"
+    confirmLabel: "Отменить изменение",
+    fields: [{ name: "reason", label: "Причина", type: "textarea", required: true, maxLength: 1000 }],
+    onSubmit: async (values) => {
+      const reason = values.reason.trim();
+
+      await api(`/api/office/trips/${trip.id}/adjustments/${adjustment.id}/reverse`, {
+        method: "POST",
+        body: { reason }
+      });
+      await refresh();
+      showToast(els.toast, "Корректировка отменена и осталась в истории");
+    }
   });
-  if (!reason) return;
-  try {
-    await api(`/api/office/trips/${trip.id}/adjustments/${adjustment.id}/reverse`, {
-      method: "POST",
-      body: { reason }
-    });
-    await refresh();
-    showToast(els.toast, "Корректировка отменена и осталась в истории");
-  } catch (error) {
-    showToast(els.toast, error.message, true);
-  }
 }
 
 async function reverseIncomingPayment(trip, payment) {
-  const reason = await requestReason({
+  await requestOfficeAction({
     title: "Отменить оплату заказчика?",
+    destructive: true,
     description: `${trip.customer_name} · ${formatRubles(payment.allocated_kopecks)}. Долг по рейсу будет пересчитан.`,
-    confirmLabel: "Отменить оплату"
+    confirmLabel: "Отменить оплату",
+    fields: [{ name: "reason", label: "Причина", type: "textarea", required: true, maxLength: 1000 }],
+    onSubmit: async (values) => {
+      const reason = values.reason.trim();
+
+      await api(`/api/office/trips/${trip.id}/payments/${payment.id}/reverse`, {
+        method: "POST",
+        body: { reason }
+      });
+      await refresh();
+      showToast(els.toast, "Оплата отменена и осталась в истории");
+    }
   });
-  if (!reason) return;
-  try {
-    await api(`/api/office/trips/${trip.id}/payments/${payment.id}/reverse`, {
-      method: "POST",
-      body: { reason }
-    });
-    await refresh();
-    showToast(els.toast, "Оплата отменена и осталась в истории");
-  } catch (error) {
-    showToast(els.toast, error.message, true);
-  }
 }
 
 async function confirmTrip(trip) {
-  const values = await requestOfficeAction({
+  await requestOfficeAction({
     eyebrow: trip.number ? `Рейс ${trip.number}` : "Рейс",
     title: "Подтвердить рейс?",
     description: `${tripRouteText(trip)}. После подтверждения начисления и расходы войдут в итоговый расчёт.`,
     confirmLabel: "Подтвердить рейс",
-    fields: []
+    fields: [],
+    onSubmit: async (values) => {
+      await api(`/api/office/trips/${trip.id}/confirm`, { method: "POST" });
+      await refresh();
+      showToast(els.toast, "Рейс подтверждён");
+    }
   });
-  if (!values) return;
-  try {
-    await api(`/api/office/trips/${trip.id}/confirm`, { method: "POST" });
-    await refresh();
-    showToast(els.toast, "Рейс подтверждён");
-  } catch (error) { showToast(els.toast, error.message, true); }
 }
 
 function contactsForCustomer(customerId) {
@@ -2715,6 +2759,7 @@ function applyOfficeRoute({ scroll = true, replaceInvalid = false } = {}) {
     history.replaceState(null, "", `${location.pathname}${location.search}#${route}`);
   }
   currentOfficeRoute = route;
+  if (route === "profitability" && reportStale) loadReport();
   const [activeSection, activeDetailId] = route.split("/");
   selectedTripId = activeSection === "trips" && activeDetailId ? activeDetailId : null;
   els.tabs.forEach((tab) => {
@@ -2723,6 +2768,7 @@ function applyOfficeRoute({ scroll = true, replaceInvalid = false } = {}) {
     tab.setAttribute("aria-selected", String(active));
     tab.tabIndex = active ? 0 : -1;
   });
+  updateTabStops(els.tabs, panelName === "new-trip" ? document.querySelector("#officeTabTrips") : null);
   els.panels.forEach((panel) => {
     const active = panel.dataset.officePanel === panelName;
     panel.classList.toggle("active", active);
@@ -2748,7 +2794,7 @@ function applyOfficeRoute({ scroll = true, replaceInvalid = false } = {}) {
 
 function handleTabKeydown(event) {
   if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
-  const tabs = [...els.tabs].filter((tab) => !tab.hidden);
+  const tabs = [...els.tabs].filter((tab) => !tab.hidden && tab.getClientRects().length > 0);
   const index = tabs.indexOf(event.currentTarget);
   if (index < 0) return;
   event.preventDefault();
@@ -2932,7 +2978,7 @@ async function submitFinancialMutation({ key, draft, prepareBody, send }) {
 }
 
 async function changeOwnPassword() {
-  const values = await requestOfficeAction({
+  await requestOfficeAction({
     eyebrow: "Безопасность",
     title: "Сменить свой пароль",
     description: "После сохранения потребуется войти заново на всех устройствах.",
@@ -2940,18 +2986,15 @@ async function changeOwnPassword() {
     fields: [
       { name: "currentPassword", label: "Текущий пароль", type: "password", autocomplete: "current-password", required: true },
       { name: "newPassword", label: "Новый пароль", type: "password", autocomplete: "new-password", minLength: 10, required: true, hint: "Не менее 10 символов." }
-    ]
+    ],
+    onSubmit: async (values) => {
+      await api("/api/me/password", {
+        method: "POST",
+        body: { currentPassword: values.currentPassword, newPassword: values.newPassword }
+      });
+      location.replace("/login.html");
+    }
   });
-  if (!values) return;
-  try {
-    await api("/api/me/password", {
-      method: "POST",
-      body: { currentPassword: values.currentPassword, newPassword: values.newPassword }
-    });
-    location.replace("/login.html");
-  } catch (error) {
-    showToast(els.toast, error.message, true);
-  }
 }
 
 function statusLabel(status) {
