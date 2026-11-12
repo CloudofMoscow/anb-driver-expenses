@@ -183,6 +183,11 @@ function todayIso() {
   return local.toISOString().slice(0, 10);
 }
 
+function createClientId() {
+  return globalThis.crypto?.randomUUID?.()
+    ?? `local-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
 function monthKey(value) {
   return value.slice(0, 7);
 }
@@ -431,7 +436,7 @@ async function collectForm() {
   } : tripSnapshot();
 
   return {
-    id: crypto.randomUUID(),
+    id: createClientId(),
     date: els.date.value,
     amount,
     driver: els.driver.value.trim(),
@@ -1280,7 +1285,7 @@ els.tripForm.addEventListener("submit", (event) => {
   }
   const status = els.tripStartStatus.value;
   const trip = {
-    id: crypto.randomUUID(),
+    id: createClientId(),
     number: els.tripNumber.value.trim(),
     from,
     to,

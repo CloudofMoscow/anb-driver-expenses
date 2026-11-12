@@ -1,0 +1,16 @@
+- banner:
+  - img "ANB Group"
+  - paragraph: Кабинет водителя
+  - heading "Иван Иванович" [level=1]
+  - status: Всё отправлено
+  - generic "Настройки"
+- main:
+  - tablist "Разделы":
+    - tab "Главная"
+    - tab "Рейс"
+    - tab "Расходы"
+    - tab "Сообщения" [active] [selected]
+  - tabpanel "Сообщения":
+    - paragraph: Информация от офиса
+    - heading "Сообщения офиса" [level=2]
+- status

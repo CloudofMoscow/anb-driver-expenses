@@ -1,0 +1,88 @@
+- banner:
+  - img "ANB Group"
+  - heading "ANB Group · демо" [level=1]
+  - paragraph: Кабинет офиса
+  - tablist "Разделы":
+    - tab "Обзор"
+    - tab "Рейсы"
+    - tab "Расходы"
+    - tab "Водители"
+    - tab "Автопарк"
+    - tab "Заказчики"
+    - tab "Доходность"
+    - tab "Настройки" [active] [selected]
+  - generic: Данные защищены
+  - generic "Аккаунт"
+- main:
+  - generic: Что найти или сделать?
+  - searchbox "Что найти или сделать?"
+  - generic "Быстрый поиск":
+    - button "Рейс"
+    - button "Заказчик"
+    - button "Водитель"
+    - button "Машина"
+  - button "Открыть уведомления": Уведомления
+  - navigation "Быстрые действия":
+    - button "Создать рейс"
+    - button "Записать оплату"
+    - button "Перевести водителю"
+    - button "Добавить расход"
+  - tabpanel "Настройки":
+    - paragraph: Команда и правила учёта
+    - heading "Настройки" [level=2]
+    - paragraph: Здесь собраны доступ сотрудников и категории расходов. Финансовые данные остаются в рабочих разделах.
+    - generic "Настройки":
+      - button "Доступ"
+      - button "Категории расходов"
+    - paragraph: Вход в систему
+    - heading "Учётные записи" [level=2]
+    - article:
+      - strong: Владелец ANB
+      - generic: Офис · owner
+      - generic: Активна
+      - generic: Телефон не указан
+      - button "Сменить пароль"
+    - article:
+      - strong: Логист ANB
+      - generic: Офис · logist
+      - generic: Активна
+      - generic: +7 900 000-00-02
+      - button "Сменить пароль"
+      - button "Отключить доступ"
+    - article:
+      - strong: Иванов Иван Иванович
+      - generic: Водитель · driver1
+      - generic: Активна
+      - generic: +7 900 111-22-31
+      - button "Сменить пароль"
+      - button "Отключить доступ"
+    - article:
+      - strong: Орлов Михаил Олегович
+      - generic: Водитель · driver5
+      - generic: Активна
+      - generic: +7 900 111-22-35
+      - button "Сменить пароль"
+      - button "Отключить доступ"
+    - article:
+      - strong: Петров Пётр Сергеевич
+      - generic: Водитель · driver2
+      - generic: Активна
+      - generic: +7 900 111-22-32
+      - button "Сменить пароль"
+      - button "Отключить доступ"
+    - article:
+      - strong: Сидоров Алексей Викторович
+      - generic: Водитель · driver3
+      - generic: Активна
+      - generic: +7 900 111-22-33
+      - button "Сменить пароль"
+      - button "Отключить доступ"
+    - article:
+      - strong: Смирнов Николай Андреевич
+      - generic: Водитель · driver4
+      - generic: Активна
+      - generic: +7 900 111-22-34
+      - button "Сменить пароль"
+      - button "Отключить доступ"
+    - generic "Добавить сотрудника"
+- status: Оплата учтена

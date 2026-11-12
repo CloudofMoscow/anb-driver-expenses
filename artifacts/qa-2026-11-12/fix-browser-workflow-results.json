@@ -1,0 +1,55 @@
+{
+  "createdAt": "2026-11-11T23:44:46.200Z",
+  "source": "disposable fix-browser instance",
+  "trip": {
+    "id": "qa-fix-assigned-1",
+    "status": "pending_review",
+    "loaded_at": "2026-11-12T07:00:00.000Z",
+    "unloaded_at": "2026-11-12T15:00:00.000Z",
+    "start_odometer_km": 123456,
+    "end_odometer_km": 123556
+  },
+  "others": [
+    {
+      "id": "trp_8758de74-0129-482b-a6bc-0bce87371605",
+      "status": "assigned",
+      "start_odometer_km": null
+    },
+    {
+      "id": "qa-fix-assigned-2",
+      "status": "assigned",
+      "start_odometer_km": null
+    },
+    {
+      "id": "qa-fix-assigned-3",
+      "status": "assigned",
+      "start_odometer_km": null
+    },
+    {
+      "id": "qa-fix-assigned-4",
+      "status": "assigned",
+      "start_odometer_km": null
+    }
+  ],
+  "expenses": [
+    {
+      "id": "exp_ca1879f3-3f32-4544-91a2-645ee1e2583c",
+      "amount_kopecks": 123,
+      "description": "QA расход после старта выбранного рейса"
+    }
+  ],
+  "adjustments": [
+    {
+      "id": "adj_4fdfe1d4-7b2d-4cb7-bf2d-a503524edb5c",
+      "amount_kopecks": 1234,
+      "reason": "QA сохранение текста",
+      "client_mutation_id": "13c25bcc-02a9-4ddf-b22c-c5f25d7a565a"
+    }
+  ],
+  "transfer": {
+    "amount_kopecks": 10000,
+    "reversed_at": "2026-11-11T23:29:42.899Z",
+    "reversal_reason": "QA сторно 100 рублей"
+  },
+  "passed": true
+}

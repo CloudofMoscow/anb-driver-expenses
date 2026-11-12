@@ -1,0 +1,12 @@
+- main:
+  - img "ANB Group"
+  - paragraph: ANB Group
+  - heading "Управление автопарком" [level=1]
+  - generic: Логин
+  - textbox "Логин" [active]
+  - generic: Пароль
+  - textbox "Пароль"
+  - button "Войти"
+  - paragraph: Все данные защищены.
+  - button "Тёмная тема"
+- status

@@ -1,0 +1,41 @@
+{
+  "createdAt": "2026-11-11T23:49:29.800Z",
+  "results": [
+    {
+      "path": "/api/office/bootstrap",
+      "compensationVisible": false,
+      "exactDeepEquality": true,
+      "trips": 5,
+      "adjustments": 2,
+      "payments": 2
+    },
+    {
+      "path": "/api/driver/bootstrap",
+      "compensationVisible": false,
+      "exactDeepEquality": true,
+      "trips": 3,
+      "adjustments": 0,
+      "payments": 0
+    },
+    {
+      "path": "/api/driver/bootstrap",
+      "compensationVisible": true,
+      "exactDeepEquality": true,
+      "trips": 3,
+      "adjustments": 0,
+      "payments": 0
+    },
+    {
+      "path": "/api/office/report?from=2026-01-01&to=2026-12-31",
+      "compensationVisible": false,
+      "exactDeepEquality": true,
+      "trips": 3,
+      "adjustments": 0,
+      "payments": 0
+    },
+    {
+      "externalConnectionInvalidatesRevision": true
+    }
+  ],
+  "passed": true
+}

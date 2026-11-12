@@ -1,0 +1,64 @@
+- banner:
+  - img "ANB Group"
+  - heading "ANB Group · демо" [level=1]
+  - paragraph: Кабинет офиса
+  - tablist "Разделы":
+    - tab "Обзор"
+    - tab "Рейсы"
+    - tab "Расходы"
+    - tab "Водители"
+    - tab "Автопарк" [selected]
+    - tab "Заказчики"
+    - tab "Доходность"
+    - tab "Настройки"
+  - generic: Данные защищены
+  - generic "Аккаунт"
+- main:
+  - generic: Что найти или сделать?
+  - searchbox "Что найти или сделать?"
+  - generic "Быстрый поиск":
+    - button "Рейс"
+    - button "Заказчик"
+    - button "Водитель"
+    - button "Машина"
+  - button "Открыть уведомления": Уведомления
+  - navigation "Быстрые действия":
+    - button "Создать рейс"
+    - button "Записать оплату"
+    - button "Перевести водителю"
+    - button "Добавить расход"
+  - tabpanel "Автопарк":
+    - paragraph: Транспорт и составы
+    - heading "Автопарк" [level=2]
+    - generic "Разделы автопарка":
+      - button "Сцепки"
+      - button "Тягачи и тралы" [active]
+      - button "Постоянные расходы"
+    - paragraph: Справочник транспорта
+    - heading "Тягачи и тралы" [level=2]
+    - heading "Добавить тягач" [level=2]
+    - generic: Марка
+    - textbox "Марка"
+    - generic: Модель
+    - textbox "Модель"
+    - generic: Госномер
+    - textbox "Госномер"
+    - generic: VIN
+    - textbox "VIN"
+    - button "Добавить тягач"
+    - heading "Добавить трал" [level=2]
+    - generic: Марка
+    - textbox "Марка"
+    - generic: Модель
+    - textbox "Модель"
+    - generic: Госномер
+    - textbox "Госномер"
+    - generic: Количество осей
+    - spinbutton "Количество осей"
+    - generic: Грузоподъёмность, кг
+    - spinbutton "Грузоподъёмность, кг"
+    - generic: Тип и особенности
+    - textbox "Тип и особенности":
+      - /placeholder: Низкорамный, раздвижной...
+    - button "Добавить трал"
+- status: Расход отменён и сохранён в истории

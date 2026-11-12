@@ -1,0 +1,156 @@
+[
+  {
+    "scenario": "office-settings-dark",
+    "width": 360,
+    "height": 800,
+    "overflow": false,
+    "theme": "dark"
+  },
+  {
+    "scenario": "office-settings-dark",
+    "width": 390,
+    "height": 844,
+    "overflow": false,
+    "theme": "dark"
+  },
+  {
+    "scenario": "office-settings-dark",
+    "width": 768,
+    "height": 1024,
+    "overflow": false,
+    "theme": "dark"
+  },
+  {
+    "scenario": "office-settings-dark",
+    "width": 1280,
+    "height": 800,
+    "overflow": false,
+    "theme": "dark"
+  },
+  {
+    "scenario": "office-settings-light",
+    "width": 360,
+    "height": 800,
+    "overflow": false,
+    "theme": "light"
+  },
+  {
+    "scenario": "office-settings-light",
+    "width": 390,
+    "height": 844,
+    "overflow": false,
+    "theme": "light"
+  },
+  {
+    "scenario": "office-settings-light",
+    "width": 768,
+    "height": 1024,
+    "overflow": false,
+    "theme": "light"
+  },
+  {
+    "scenario": "office-settings-light",
+    "width": 1280,
+    "height": 800,
+    "overflow": false,
+    "theme": "light"
+  },
+  {
+    "scenario": "F01 changed-data polling",
+    "width": 390,
+    "height": 844,
+    "trip": "qa-fix-assigned-1",
+    "odometer": 123456,
+    "date": "2026-11-12T10:00",
+    "file": "icon-192.png",
+    "result": "retained"
+  },
+  {
+    "scenario": "driver-messages-dark",
+    "width": 360,
+    "height": 800,
+    "cards": 30,
+    "overflow": false
+  },
+  {
+    "scenario": "driver-messages-dark",
+    "width": 390,
+    "height": 844,
+    "cards": 30,
+    "overflow": false
+  },
+  {
+    "scenario": "driver-messages-dark",
+    "width": 768,
+    "height": 1024,
+    "cards": 30,
+    "overflow": false
+  },
+  {
+    "scenario": "driver-messages-dark",
+    "width": 1280,
+    "height": 800,
+    "cards": 30,
+    "overflow": false
+  },
+  {
+    "scenario": "driver-messages-light",
+    "width": 360,
+    "height": 800,
+    "cards": 30,
+    "overflow": false
+  },
+  {
+    "scenario": "driver-messages-light",
+    "width": 390,
+    "height": 844,
+    "cards": 30,
+    "overflow": false
+  },
+  {
+    "scenario": "driver-messages-light",
+    "width": 768,
+    "height": 1024,
+    "cards": 30,
+    "overflow": false
+  },
+  {
+    "scenario": "driver-messages-light",
+    "width": 1280,
+    "height": 800,
+    "cards": 30,
+    "overflow": false
+  },
+  {
+    "scenario": "driver2 completion draft after >30s changed-data polling with empty queue",
+    "width": 390,
+    "height": 844,
+    "expanded": true,
+    "focus": "endOdometer",
+    "value": "999999"
+  },
+  {
+    "scenario": "explicit completion entry",
+    "width": 360,
+    "height": 800,
+    "focus": "completeTripHeading",
+    "formVisible": true,
+    "overflow": false
+  },
+  {
+    "scenario": "explicit completion entry",
+    "width": 1280,
+    "height": 800,
+    "focus": "completeTripHeading",
+    "formVisible": true,
+    "overflow": false
+  },
+  {
+    "scenario": "office balance changed-data polling on final v82",
+    "width": 1280,
+    "height": 800,
+    "focus": "Показать расчёт баланса",
+    "key": "settlement-usr_3d59af1d-3dab-4cd2-9519-63cdae0ca993",
+    "open": true
+  }
+]
