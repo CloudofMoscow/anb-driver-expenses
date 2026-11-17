@@ -2,14 +2,14 @@
 <html lang="ru">
   <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
     <meta name="theme-color" content="#ffffff">
-    <script src="./theme.js?v=82"></script>
+    <script src="./theme.js?v=87"></script>
     <title>Кабинет офиса · ANB</title>
-    <link rel="manifest" href="./manifest.webmanifest?v=82">
+    <link rel="manifest" href="./manifest.webmanifest?v=87">
     <link rel="icon" href="./icon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="./apple-touch-icon.png">
-    <link rel="stylesheet" href="./styles.css?v=82">
+    <link rel="stylesheet" href="./styles.css?v=87">
   </head>
   <body class="office-page">
     <div class="app-shell office-shell portal-shell">
@@ -50,6 +50,7 @@
               <button class="header-button" type="button" data-theme-toggle>Тёмная тема</button>
               <button class="header-button" id="changePasswordButton" type="button">Сменить пароль</button>
               <button class="header-button" id="logoutButton" type="button">Выйти</button>
+              <small class="app-version field-hint" data-app-version>Версия интерфейса v87</small>
             </div>
           </details>
         </div>
@@ -83,6 +84,7 @@
         </nav>
 
         <section class="tab-panel active office-overview" id="officePanelOverview" role="tabpanel" aria-labelledby="officeTabOverview" data-office-panel="overview">
+          <div class="workspace-heading"><div><h2>Обзор</h2><p>Рейсы, задачи и расчёты автопарка</p></div></div>
           <div class="office-workspace-grid">
             <section class="workspace-card workspace-today" aria-labelledby="workspaceTodayTitle">
               <div class="workspace-card-heading">
@@ -795,6 +797,6 @@
     </dialog>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="./office.js?v=82" type="module"></script>
+    <script src="./office.js?v=87" type="module"></script>
   </body>
 </html>

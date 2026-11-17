@@ -2,16 +2,16 @@
 <html lang="ru">
   <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
     <meta name="theme-color" content="#ffffff">
-    <script src="./theme.js?v=82"></script>
+    <script src="./theme.js?v=87"></script>
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="ANB Водитель">
     <title>Кабинет водителя · ANB</title>
-    <link rel="manifest" href="./manifest.webmanifest?v=82">
+    <link rel="manifest" href="./manifest.webmanifest?v=87">
     <link rel="icon" href="./icon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="./apple-touch-icon.png">
-    <link rel="stylesheet" href="./styles.css?v=82">
+    <link rel="stylesheet" href="./styles.css?v=87">
   </head>
   <body class="driver-page">
     <div class="app-shell driver-shell portal-shell">
@@ -33,6 +33,7 @@
               <button class="header-button" id="changePasswordButton" type="button">Сменить пароль</button>
               <button class="header-button" id="clearDeviceButton" type="button" title="Удалить локальные данные с телефона">Очистить данные</button>
               <button class="header-button" id="logoutButton" type="button">Выйти</button>
+              <small class="app-version field-hint" data-app-version>Версия интерфейса v87</small>
             </div>
           </details>
         </div>
@@ -54,6 +55,9 @@
               <div><span id="homeTripNumber">Рейс не назначен</span><strong id="homeTripRoute">Ожидаем данные от офиса</strong></div>
               <span class="status-badge" id="homeTripStatus">Нет рейса</span>
             </div>
+            <div class="driver-route-action">
+              <button class="primary-action driver-home-expense" id="driverHomeExpenseButton" type="button">Добавить расход</button>
+            </div>
             <div class="route-timeline">
               <div class="route-step current" id="homeLoadingStep"><span class="route-dot"></span><div><strong>Погрузка</strong><span id="homeLoadingPlace">—</span><small id="homeLoadingTime">Дата пока не указана</small></div></div>
               <div class="route-step" id="homeProgressStep"><span class="route-dot"></span><div><strong id="homeProgressTitle">Ожидает начала</strong><span id="driverDistanceStatus">Расстояние по дорогам пока не рассчитано</span><small id="driverLocationStatus">Геопозиция ещё не отправлена</small><button type="button" id="refreshDriverLocationButton">Обновить геопозицию</button></div></div>
@@ -61,7 +65,6 @@
             </div>
           </article>
 
-          <button class="primary-action driver-home-expense" id="driverHomeExpenseButton" type="button">Добавить расход</button>
           <div class="driver-home-actions">
             <button type="button" id="driverHomeReceiptButton">Фото чека</button>
             <button type="button" id="driverHomeTripButton">Открыть рейс</button>
@@ -182,14 +185,14 @@
           <p class="empty-state" id="noTrips">Офис пока не назначил вам рейс.</p>
         </section>
 
-        <section class="tab-panel" id="driverPanelExpense" role="tabpanel" aria-labelledby="driverTabExpense" data-driver-panel="expense">
+        <section class="tab-panel" id="driverPanelExpense" role="tabpanel" aria-labelledby="driverTabJournal" data-driver-panel="expense">
           <form class="expense-form" id="driverExpenseForm">
             <div class="profile-heading">
               <h2>Новый расход</h2>
               <p id="expenseTripHint">Расход можно добавить после начала рейса.</p>
             </div>
             <div class="field-row two">
-              <label>
+              <label class="expense-amount-field">
                 <span>Сумма, ₽</span>
                 <input id="expenseAmount" type="text" inputmode="decimal" placeholder="0,00" required>
               </label>
@@ -248,10 +251,11 @@
               <span>Комментарий обязателен</span>
               <textarea id="expenseDescription" rows="3" maxlength="2000" required placeholder="Что куплено или что произошло"></textarea>
             </label>
-            <label class="file-field">
+            <label class="file-field expense-receipt-field">
               <span>Фото чека обязательно</span>
-              <input id="expenseReceipt" type="file" accept="image/*,application/pdf" capture="environment" required>
+              <input id="expenseReceipt" type="file" accept="image/*,application/pdf" capture="environment" aria-describedby="expenseReceiptHint" required>
               <strong>Сфотографировать или выбрать чек</strong>
+              <small class="field-hint" id="expenseReceiptHint" data-file-selection-for="expenseReceipt" role="status">Фото или PDF, до 12 МБ. Оригинал сохранится вместе с расходом.</small>
             </label>
             <button class="primary-action save-expense" id="saveDriverExpense" type="submit">Сохранить расход</button>
           </form>
@@ -326,6 +330,6 @@
       </form>
     </dialog>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="./driver.js?v=82" type="module"></script>
+    <script src="./driver.js?v=87" type="module"></script>
   </body>
 </html>

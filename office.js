@@ -9,11 +9,12 @@ import {
   rublesToKopecks,
   showToast,
   uploadAttachment
-} from "./api-client.js?v=82";
-import { submitIdempotentMutation } from "./financial-mutation.js?v=82";
-import { initializePushNotifications } from "./push-notifications.js?v=82";
-import { captureUiState, updateTabStops } from "./ui-state.js?v=82";
-import { installFormFeedback, showFormError, validateForm } from "./form-feedback.js?v=82";
+} from "./api-client.js?v=87";
+import { submitIdempotentMutation } from "./financial-mutation.js?v=87";
+import { initializePushNotifications } from "./push-notifications.js?v=87";
+import { captureUiState, updateTabStops } from "./ui-state.js?v=87";
+import { installFormFeedback, showFormError, validateForm } from "./form-feedback.js?v=87";
+import { initializeAppShell } from "./app-shell.js?v=87";
 
 const els = {
   officeName: document.querySelector("#officeName"),
@@ -230,6 +231,7 @@ let workspaceFilter = "all";
 
 const COMPLETED_TRIP_STATUSES = new Set(["pending_review", "needs_explanation", "confirmed", "closed"]);
 
+initializeAppShell();
 init();
 
 async function init() {
@@ -585,8 +587,8 @@ function renderOfficeWorkspace() {
 
   const receivable = receivableTrips.reduce((total, trip) => total + Number(trip.receivable_kopecks || 0), 0);
   els.workspaceControlList.innerHTML = [
-    [activeTrips.length, "активных рейса", "trips"],
-    [pendingExpenses.length, "операции требуют проверки", "expenses"],
+    [activeTrips.length, pluralize(activeTrips.length, "активный рейс", "активных рейса", "активных рейсов"), "trips"],
+    [pendingExpenses.length, pluralize(pendingExpenses.length, "операция ждёт проверки", "операции ждут проверки", "операций ждут проверки"), "expenses"],
     [formatRubles(receivable), "ожидаем от заказчиков", "customers"]
   ].map(([value, label, route], index) => `
     <button type="button" data-workspace-route="${route}"><i data-tone="${index === 0 ? "success" : index === 1 ? "warning" : "danger"}"></i><strong>${escapeHtml(String(value))}</strong><span>${escapeHtml(label)}</span><b>Открыть</b></button>

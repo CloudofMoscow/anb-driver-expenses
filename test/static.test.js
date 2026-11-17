@@ -38,7 +38,7 @@ test("PWA cache-busting references use the active service-worker version", () =>
   assert.ok(activeVersion, "service-worker cache version is missing");
   const sources = [
     worker,
-    ...["login.js", "office.js", "driver.js", "driver-outbox.js", "form-feedback.js"].map((name) => readFileSync(resolve(root, name), "utf8")),
+    ...["login.js", "office.js", "driver.js", "driver-outbox.js", "form-feedback.js", "app-shell.js"].map((name) => readFileSync(resolve(root, name), "utf8")),
     readFileSync(resolve(root, "login.html"), "utf8"),
     readFileSync(resolve(root, "office.html"), "utf8"),
     readFileSync(resolve(root, "driver.html"), "utf8"),
@@ -48,11 +48,29 @@ test("PWA cache-busting references use the active service-worker version", () =>
     .map((match) => match[1]);
   assert.ok(versions.length > 0, "no versioned PWA assets found");
   assert.deepEqual([...new Set(versions)], [activeVersion]);
-  for (const name of ["login.js", "office.js", "driver.js", "driver-outbox.js", "form-feedback.js"]) {
+  for (const name of ["login.js", "office.js", "driver.js", "driver-outbox.js", "form-feedback.js", "app-shell.js"]) {
     for (const [, imported] of readFileSync(resolve(root, name), "utf8").matchAll(/from "(\.\/[^"\n]+\.js(?:\?v=\d+)?)"/g)) {
       assert.equal(imported.endsWith(`?v=${activeVersion}`), true, `${name}: ${imported} must bypass stale HTTP module caches`);
       assert.ok(worker.includes(`"${imported}"`), `${imported} must be available offline`);
     }
+  }
+});
+
+test("shell version, offline assets and server allowlist agree without disabling zoom", () => {
+  const shell = readFileSync(resolve(root, "app-shell.js"), "utf8");
+  const worker = readFileSync(resolve(root, "sw.js"), "utf8");
+  const version = shell.match(/APP_VERSION = "(\d+)"/)[1];
+  assert.ok(worker.includes(`anb-fleet-v${version}`));
+  assert.ok(worker.includes(`"./app-shell.js?v=${version}"`));
+  assert.ok(readFileSync(resolve(root, "server/app.js"), "utf8").includes('"app-shell.js"'));
+  assert.ok(JSON.parse(readFileSync(resolve(root, "package.json"), "utf8")).scripts.check.includes("node --check app-shell.js"));
+  for (const name of ["driver.html", "office.html", "login.html"]) {
+    const html = readFileSync(resolve(root, name), "utf8");
+    const viewport = html.match(/name="viewport" content="([^"]+)"/)[1];
+    assert.ok(viewport.includes("viewport-fit=cover"));
+    assert.ok(viewport.includes("interactive-widget=resizes-content"));
+    assert.doesNotMatch(viewport, /maximum-scale|user-scalable/);
+    if (name !== "login.html") assert.ok(html.includes(`data-app-version>Версия интерфейса v${version}`));
   }
 });
 

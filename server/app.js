@@ -61,6 +61,7 @@ const publicFiles = new Set([
   "financial-mutation.js",
   "form-feedback.js",
   "ui-state.js",
+  "app-shell.js",
   "driver-outbox.js",
   "push-notifications.js",
   "manifest.webmanifest",

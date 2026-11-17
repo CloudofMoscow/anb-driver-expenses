@@ -1,4 +1,4 @@
-import { api, uploadAttachment } from "./api-client.js?v=82";
+import { api, uploadAttachment } from "./api-client.js?v=87";
 
 const DATABASE_NAME = "anb-driver-outbox-v1";
 const DATABASE_VERSION = 1;

@@ -7,7 +7,7 @@ import {
   formatRubles,
   rublesToKopecks,
   showToast
-} from "./api-client.js?v=82";
+} from "./api-client.js?v=87";
 import {
   clearDriverOperations,
   countDriverOperations,
@@ -15,10 +15,11 @@ import {
   enqueueDriverOperation,
   flushDriverOperations,
   listDriverOperations
-} from "./driver-outbox.js?v=82";
-import { initializePushNotifications } from "./push-notifications.js?v=82";
-import { captureUiState, updateTabStops } from "./ui-state.js?v=82";
-import { installFormFeedback, showFormError, validateForm } from "./form-feedback.js?v=82";
+} from "./driver-outbox.js?v=87";
+import { initializePushNotifications } from "./push-notifications.js?v=87";
+import { captureUiState, updateTabStops } from "./ui-state.js?v=87";
+import { installFormFeedback, showFormError, validateForm } from "./form-feedback.js?v=87";
+import { initializeAppShell, updateFileSelectionLabels } from "./app-shell.js?v=87";
 
 const cacheKeyPrefix = "anb-driver-bootstrap-v2";
 const selectedTripKeyPrefix = "anb-selected-trip-v2";
@@ -143,6 +144,7 @@ let driverActionPending = false;
 let queuingOperation = false;
 let geolocationNoticeShown = false;
 
+initializeAppShell();
 init();
 
 async function init() {
@@ -252,6 +254,7 @@ function render() {
   els.tripExpenseCount.textContent = String(tripExpenses.length);
   renderDriverShortcuts(trip);
   restoreUi();
+  updateFileSelectionLabels();
   els.expenseForm.querySelectorAll("input,select,textarea,button").forEach((control) => {
     control.disabled = state.syncing || Boolean(rejectedOperation) || trip?.status !== "in_progress";
   });
@@ -286,7 +289,9 @@ function renderDriverHome(trip) {
   els.homeProgressTitle.textContent = active ? "В пути" : trip ? statusLabel(trip.status) : "Ожидает назначения";
   els.driverDistanceStatus.textContent = active
     ? "Расстояние по дорогам пока не рассчитано"
-    : "Расчёт начнётся после старта рейса";
+    : completed ? "Рейс завершён"
+    : trip ? "Рейс ещё не начат"
+    : "Ожидаем назначение от офиса";
   if (trip?.latest_location_captured_at) {
     const accuracy = trip.latest_location_accuracy_m == null
       ? ""
@@ -931,6 +936,10 @@ function bindEvents() {
       openExpenseForm(false);
       return;
     }
+    if (["assigned", "awaiting_loading"].includes(trip.status)) {
+      openStartTripForm();
+      return;
+    }
     switchTab("trip");
   });
   els.homeReceiptButton.addEventListener("click", () => openExpenseForm(true));
@@ -956,14 +965,9 @@ function bindEvents() {
     const trip = selectedTrip();
     if (!trip) return;
     if (trip.status === "in_progress") {
-      switchTab("expense");
-      els.expenseAmount.focus();
+      openExpenseForm(false);
     } else if (["assigned", "awaiting_loading"].includes(trip.status)) {
-      switchTab("trip");
-      els.tripDetail.classList.add("action-expanded");
-      renderDriverShortcuts(trip);
-      scrollIntoViewRespectingMotion(els.startTripForm);
-      els.loadedAt.focus();
+      openStartTripForm();
     } else {
       switchTab("journal");
     }
@@ -1100,6 +1104,17 @@ function bindEvents() {
   });
 }
 
+function openStartTripForm() {
+  const trip = selectedTrip();
+  if (!trip || !["assigned", "awaiting_loading"].includes(trip.status) || state.syncing || rejectedQueuedOperation()) return;
+  switchTab("trip");
+  applyDriverRoute({ scroll: false });
+  els.tripDetail.classList.add("action-expanded");
+  renderDriverShortcuts(trip);
+  scrollIntoViewRespectingMotion(els.startTripForm);
+  els.loadedAt.focus({ preventScroll: true });
+}
+
 function openCompleteTripForm() {
   if (selectedTrip()?.status !== "in_progress" || state.syncing || rejectedQueuedOperation()) return;
   switchTab("trip");
@@ -1116,6 +1131,7 @@ function openExpenseForm(openCamera) {
     return;
   }
   switchTab("expense");
+  applyDriverRoute({ scroll: false });
   if (openCamera) els.expenseReceipt.click();
   else els.expenseAmount.focus();
 }
@@ -1282,8 +1298,10 @@ function applyDriverRoute({ scroll = true, replaceInvalid = false } = {}) {
     history.replaceState(null, "", `${location.pathname}${location.search}#${route}`);
   }
   const target = panelByRoute[route];
+  const navTarget = target === "expense" ? "journal" : target;
+  document.querySelector("#driverTabJournal").setAttribute("aria-controls", target === "expense" ? "driverPanelExpense" : "driverPanelJournal");
   els.tabs.forEach((tab) => {
-    const active = tab.dataset.driverTab === target;
+    const active = tab.dataset.driverTab === navTarget;
     tab.classList.toggle("active", active);
     tab.setAttribute("aria-selected", String(active));
     tab.tabIndex = active ? 0 : -1;
