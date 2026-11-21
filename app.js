@@ -40,6 +40,8 @@ const els = {
   reportFrom: document.querySelector("#reportFrom"),
   reportTo: document.querySelector("#reportTo"),
   reportSummary: document.querySelector("#reportSummary"),
+  reportError: document.querySelector("#reportError"),
+  appContent: document.querySelector("#appContent"),
   shareReport: document.querySelector("#shareReport"),
   downloadReport: document.querySelector("#downloadReport"),
   platformLabel: document.querySelector("#platformLabel"),
@@ -49,10 +51,13 @@ const els = {
   profileVehicle: document.querySelector("#profileVehicle"),
   driverSummary: document.querySelector("#driverSummary"),
   openProfile: document.querySelector("#openProfile"),
+  tripContext: document.querySelector("#tripContext"),
   currentTripTitle: document.querySelector("#currentTripTitle"),
   currentTripMeta: document.querySelector("#currentTripMeta"),
   startTrip: document.querySelector("#startTrip"),
   endTrip: document.querySelector("#endTrip"),
+  endTripDialog: document.querySelector("#endTripDialog"),
+  endTripRoute: document.querySelector("#endTripRoute"),
   tripDialog: document.querySelector("#tripDialog"),
   tripForm: document.querySelector("#tripForm"),
   closeTripDialog: document.querySelector("#closeTripDialog"),
@@ -67,17 +72,26 @@ const els = {
   correctionReason: document.querySelector("#correctionReason"),
   cancelCorrection: document.querySelector("#cancelCorrection"),
   saveExpenseButton: document.querySelector("#saveExpenseButton"),
+  expenseError: document.querySelector("#expenseError"),
   toast: document.querySelector("#toast"),
   storageStatus: document.querySelector("#storageStatus")
 };
 
 let db;
 let expenses = [];
+let supersededIds = new Set();
 let toastTimer;
 let selectedReceipt = null;
 let selectedReceiptPreviewUrl = "";
 let receiptProcessing = false;
+let receiptRevision = 0;
 let correctionSource = null;
+let newExpenseDraft = null;
+let savingExpense = false;
+let preparedReport = null;
+let preparingReport = false;
+let reportRevision = 0;
+const draftFields = ["date", "amount", "route", "category", "payment", "supplier", "note"];
 
 const IMAGE_MAX_SIDE = 1900;
 const IMAGE_QUALITY = 0.86;
@@ -116,8 +130,42 @@ async function getAllExpenses() {
   return rows.sort((a, b) => `${b.date}T${b.createdAt}`.localeCompare(`${a.date}T${a.createdAt}`));
 }
 
-async function saveExpense(expense) {
-  await requestToPromise(transaction("readwrite").put(expense));
+function saveExpense(expense) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE, "readwrite");
+    const store = tx.objectStore(STORE);
+    let conflict = false;
+    tx.oncomplete = () => resolve();
+    tx.onabort = () => reject(conflict
+      ? new DOMException("Этот расход уже исправлен или недоступен. Откройте актуальную запись в журнале.", "InvalidStateError")
+      : tx.error || new DOMException("Сохранение отменено", "AbortError"));
+
+    if (!expense.correctionOf) {
+      store.add(expense);
+      return;
+    }
+
+    const sourceRequest = store.getKey(expense.correctionOf);
+    sourceRequest.onsuccess = () => {
+      if (sourceRequest.result === undefined) {
+        conflict = true;
+        tx.abort();
+        return;
+      }
+      const cursorRequest = store.openCursor();
+      cursorRequest.onsuccess = () => {
+        const cursor = cursorRequest.result;
+        if (!cursor) {
+          store.add(expense);
+        } else if (cursor.value.correctionOf === expense.correctionOf) {
+          conflict = true;
+          tx.abort();
+        } else {
+          cursor.continue();
+        }
+      };
+    };
+  });
 }
 
 function formatRub(value) {
@@ -130,7 +178,8 @@ function formatRub(value) {
 
 function formatDate(value) {
   if (!value) return "";
-  return new Intl.DateTimeFormat("ru-RU").format(new Date(`${value}T12:00:00`));
+  const date = dateFromIso(value);
+  return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat("ru-RU").format(date);
 }
 
 function formatDateTime(value) {
@@ -164,17 +213,7 @@ function detectPlatform() {
 }
 
 function updatePlatformInfo() {
-  if (els.platformLabel) els.platformLabel.textContent = detectPlatform();
-  if (els.shareModeLabel) {
-    const canShareZip = typeof File === "function"
-      && navigator.share
-      && (!navigator.canShare || navigator.canShare({
-        files: [new File([""], "report.zip", { type: "application/zip" })]
-      }));
-    els.shareModeLabel.textContent = canShareZip
-      ? "Через меню отправки"
-      : "Скачивание ZIP";
-  }
+  els.platformLabel.textContent = detectPlatform();
 }
 
 function todayIso() {
@@ -194,15 +233,19 @@ function showToast(message) {
   toastTimer = setTimeout(() => els.toast.classList.remove("visible"), 2600);
 }
 
-function safeFileName(value, fallback = "file") {
-  return String(value || fallback)
+function safeFileName(value, fallback = "file", maxLength = 120) {
+  const cleaned = String(value || fallback)
     .trim()
     .replace(/[\\/:*?"<>|]+/g, "-")
+    .replace(/[\u0000-\u001F\u007F]/g, "")
     .replace(/\s+/g, " ")
-    .slice(0, 120) || fallback;
+    .replace(/[. ]+$/, "");
+  return Array.from(cleaned).slice(0, Math.max(1, maxLength)).join("").trim() || fallback;
 }
 
 function clearReceiptPreview() {
+  receiptRevision += 1;
+  receiptProcessing = false;
   if (selectedReceiptPreviewUrl) URL.revokeObjectURL(selectedReceiptPreviewUrl);
   selectedReceipt = null;
   selectedReceiptPreviewUrl = "";
@@ -266,19 +309,22 @@ async function compressReceiptImage(file) {
   });
 }
 
-async function prepareReceipt(file) {
+async function prepareReceipt(file, previouslyPrepared = null) {
+  clearReceiptPreview();
   if (!file) {
-    clearReceiptPreview();
+    els.receiptLabel.textContent = "Прикрепить файл или фото";
+    if (correctionSource) showStoredReceipt(correctionSource);
     return;
   }
 
+  const revision = receiptRevision;
   receiptProcessing = true;
-  clearReceiptPreview();
   els.receiptLabel.textContent = "Готовим чек...";
 
   try {
     const isImage = file.type.startsWith("image/");
-    const prepared = isImage ? await compressReceiptImage(file) : file;
+    const prepared = previouslyPrepared || (isImage ? await compressReceiptImage(file) : file);
+    if (revision !== receiptRevision) return;
     selectedReceipt = prepared;
     selectedReceiptPreviewUrl = URL.createObjectURL(prepared);
     els.receiptLabel.textContent = prepared.name;
@@ -292,6 +338,7 @@ async function prepareReceipt(file) {
       : `${formatBytes(prepared.size)}, без сжатия`;
     els.receiptPreview.hidden = false;
   } catch (error) {
+    if (revision !== receiptRevision) return;
     selectedReceipt = file;
     selectedReceiptPreviewUrl = URL.createObjectURL(file);
     els.receiptLabel.textContent = file.name;
@@ -303,7 +350,7 @@ async function prepareReceipt(file) {
     els.receiptPreviewMeta.textContent = `${formatBytes(file.size)}, ${error.message}`;
     els.receiptPreview.hidden = false;
   } finally {
-    receiptProcessing = false;
+    if (revision === receiptRevision) receiptProcessing = false;
   }
 }
 
@@ -330,13 +377,14 @@ function hydrateSettings() {
   const settings = getSettings();
   const driver = settings.profileDriver || settings.driver || "";
   const vehicle = settings.profileVehicle || settings.vehicle || "";
-  els.driver.value = driver;
-  els.vehicle.value = vehicle;
   els.profileDriver.value = driver;
   els.profileVehicle.value = vehicle;
-  els.driverSummary.textContent = [driver, vehicle].filter(Boolean).join(" · ") || "Профиль не заполнен";
-  const activeTrip = getActiveTrip();
-  els.vehicleStatus.value = settings.currentVehicleStatus || activeTrip?.currentStatus || "Стоянка";
+  if (!correctionSource) {
+    els.driver.value = driver;
+    els.vehicle.value = vehicle;
+    els.driverSummary.textContent = [driver, vehicle].filter(Boolean).join(" · ") || "Профиль не заполнен";
+    els.vehicleStatus.value = settings.currentVehicleStatus || settings.activeTrip?.currentStatus || "Стоянка";
+  }
   renderCurrentTrip();
 }
 
@@ -350,6 +398,17 @@ function setActiveTrip(activeTrip) {
 }
 
 function renderCurrentTrip() {
+  const source = correctionSource;
+  els.tripContext.setAttribute("aria-label", source ? "Рейс исходного расхода" : "Текущий рейс");
+  els.tripContext.querySelector(".section-kicker").textContent = source ? "Рейс исходного расхода" : "Текущий рейс";
+  els.tripContext.querySelector("label span").textContent = source ? "Статус машины в расходе" : "Машина сейчас";
+  if (source) {
+    els.currentTripTitle.textContent = expenseTripLabel(source);
+    els.currentTripMeta.textContent = source.tripNumber ? `№ ${source.tripNumber}` : "";
+    els.startTrip.hidden = true;
+    els.endTrip.hidden = true;
+    return;
+  }
   const trip = getActiveTrip();
   if (!trip) {
     els.currentTripTitle.textContent = "Вне рейса";
@@ -386,13 +445,16 @@ function expenseTripLabel(expense) {
 }
 
 function updatePlaceSuggestions() {
-  const values = [];
-  expenses.forEach((expense) => {
-    [expense.route, expense.tripFrom, expense.tripTo].forEach((value) => {
+  const places = new Set();
+  for (const expense of expenses) {
+    for (const value of [expense.route, expense.tripFrom, expense.tripTo]) {
       const clean = String(value || "").trim();
-      if (clean && !values.includes(clean)) values.push(clean);
-    });
-  });
+      if (clean) places.add(clean);
+      if (places.size === 30) break;
+    }
+    if (places.size === 30) break;
+  }
+  const values = [...places];
 
   els.placeSuggestions.innerHTML = values.slice(0, 30)
     .map((value) => `<option value="${escapeHtml(value)}"></option>`)
@@ -413,11 +475,9 @@ function updatePlaceSuggestions() {
   });
 }
 
-async function collectForm() {
-  const fallbackReceipt = correctionSource?.receiptBlob || null;
-  const file = selectedReceipt || els.receipt.files[0] || fallbackReceipt;
+function collectForm() {
+  const file = selectedReceipt || correctionSource?.receiptBlob || null;
   const receiptName = selectedReceipt?.name
-    || els.receipt.files[0]?.name
     || correctionSource?.receiptName
     || "";
   const receiptType = file?.type || correctionSource?.receiptType || "";
@@ -434,8 +494,8 @@ async function collectForm() {
     id: crypto.randomUUID(),
     date: els.date.value,
     amount,
-    driver: els.driver.value.trim(),
-    vehicle: els.vehicle.value.trim(),
+    driver: correctionSource ? correctionSource.driver || "" : els.driver.value.trim(),
+    vehicle: correctionSource ? correctionSource.vehicle || "" : els.vehicle.value.trim(),
     vehicleStatus: els.vehicleStatus.value,
     route: els.route.value.trim(),
     category: els.category.value,
@@ -446,7 +506,6 @@ async function collectForm() {
     receiptType,
     receiptSize: file ? file.size : 0,
     receiptBlob: file,
-    receiptHash: await sha256Blob(file),
     ...(sourceTrip || {
       tripId: "",
       tripNumber: "",
@@ -469,22 +528,17 @@ function resetFormAfterSave() {
   els.receipt.value = "";
   els.receiptLabel.textContent = "Прикрепить файл или фото";
   clearReceiptPreview();
+  els.expenseError.hidden = true;
   els.date.value = todayIso();
   cancelCorrectionMode();
 }
 
 function isSuperseded(expense) {
-  return expenses.some((candidate) => candidate.correctionOf === expense.id);
+  return supersededIds.has(expense.id);
 }
 
 function effectiveExpenses(source = expenses) {
-  const sourceIds = new Set(source.map((expense) => expense.id));
-  const superseded = new Set(
-    expenses
-      .filter((expense) => expense.correctionOf && sourceIds.has(expense.correctionOf))
-      .map((expense) => expense.correctionOf)
-  );
-  return source.filter((expense) => !superseded.has(expense.id));
+  return source.filter((expense) => !isSuperseded(expense));
 }
 
 function recordStatus(expense) {
@@ -506,6 +560,17 @@ function showStoredReceipt(expense) {
 }
 
 function startCorrection(expense) {
+  if (savingExpense) return;
+  if (correctionSource) {
+    switchTab("entry", els.correctionReason);
+    showToast("Завершите или отмените текущее исправление");
+    return;
+  }
+  newExpenseDraft = {
+    values: draftFields.map((key) => els[key].value),
+    file: els.receipt.files[0] || selectedReceipt,
+    prepared: selectedReceipt
+  };
   resetFormAfterSave();
   correctionSource = expense;
   els.correctionBanner.hidden = false;
@@ -517,14 +582,15 @@ function startCorrection(expense) {
   els.vehicle.value = expense.vehicle || "";
   els.driverSummary.textContent = [expense.driver, expense.vehicle].filter(Boolean).join(" · ") || "Профиль не заполнен";
   els.vehicleStatus.value = statusOf(expense);
+  els.openProfile.hidden = true;
+  renderCurrentTrip();
   els.route.value = expense.route || "";
   els.category.value = expense.category || els.category.value;
   els.payment.value = expense.payment || els.payment.value;
   els.supplier.value = expense.supplier || "";
   els.note.value = expense.note || "";
   showStoredReceipt(expense);
-  switchTab("entry");
-  window.scrollTo({ top: 0, behavior: "smooth" });
+  switchTab("entry", els.correctionReason);
 }
 
 function cancelCorrectionMode() {
@@ -532,6 +598,17 @@ function cancelCorrectionMode() {
   els.correctionBanner.hidden = true;
   els.correctionReason.value = "";
   els.saveExpenseButton.textContent = "Сохранить расход";
+  els.openProfile.hidden = false;
+}
+
+function restoreNewExpenseForm() {
+  resetFormAfterSave();
+  hydrateSettings();
+  if (!newExpenseDraft) return;
+  const { values, file, prepared } = newExpenseDraft;
+  newExpenseDraft = null;
+  draftFields.forEach((key, index) => { els[key].value = values[index]; });
+  void prepareReceipt(file, prepared);
 }
 
 function updateSummary() {
@@ -586,6 +663,9 @@ function renderExpenses() {
 
   els.list.innerHTML = "";
   els.emptyState.classList.toggle("visible", rows.length === 0);
+  els.emptyState.textContent = query && expenses.length
+    ? "Ничего не найдено. Измените запрос или нажмите «Сброс»."
+    : "Записей пока нет";
 
   const fragment = document.createDocumentFragment();
   rows.forEach((expense) => {
@@ -641,15 +721,30 @@ function escapeHtml(value) {
 
 async function refresh() {
   expenses = await getAllExpenses();
+  supersededIds = new Set(expenses.map((expense) => expense.correctionOf).filter(Boolean));
   updateSummary();
   renderExpenses();
   updatePlaceSuggestions();
   updateReportSummary();
 }
 
-function switchTab(tabName) {
-  els.tabs.forEach((tab) => tab.classList.toggle("active", tab.dataset.tab === tabName));
-  els.panels.forEach((panel) => panel.classList.toggle("active", panel.dataset.panel === tabName));
+function switchTab(tabName, focusTarget = null) {
+  els.tabs.forEach((tab) => {
+    const active = tab.dataset.tab === tabName;
+    tab.classList.toggle("active", active);
+    if (active) tab.setAttribute("aria-current", "true");
+    else tab.removeAttribute("aria-current");
+  });
+  let activePanel;
+  els.panels.forEach((panel) => {
+    const active = panel.dataset.panel === tabName;
+    panel.hidden = !active;
+    panel.classList.toggle("active", active);
+    if (active) activePanel = panel;
+  });
+  els.appContent.scrollTop = 0;
+  window.scrollTo(0, 0);
+  (focusTarget || activePanel)?.focus({ preventScroll: !focusTarget });
   if (tabName === "export") updateReportSummary();
 }
 
@@ -666,7 +761,10 @@ function downloadBlob(blob, fileName) {
 
 function downloadReceipt(expense) {
   if (!expense.receiptBlob) return;
-  const name = safeFileName(expense.receiptName, `receipt-${expense.id}`);
+  const original = String(expense.receiptName || "");
+  const extension = extensionFromName(original);
+  const base = original.slice(0, original.length - extension.length);
+  const name = `${safeFileName(base, `receipt-${expense.id}`, 72 - extension.length)}${extension}`;
   downloadBlob(expense.receiptBlob, name);
 }
 
@@ -840,6 +938,7 @@ function columnName(index) {
 
 function xml(value) {
   return String(value ?? "")
+    .replace(/[^\u0009\u000A\u000D\u0020-\uD7FF\uE000-\uFFFD\u{10000}-\u{10FFFF}]/gu, "")
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
@@ -879,7 +978,8 @@ async function buildArchiveBlob(source = expenses) {
   for (const expense of source) {
     if (!expense.receiptBlob) continue;
     const extension = extensionFromName(expense.receiptName);
-    const name = safeFileName(`${expense.date}-${expense.category}-${expense.id}${extension}`, `receipt-${expense.id}${extension}`);
+    const suffix = `-${expense.id}${extension}`;
+    const name = `${safeFileName(`${expense.date}-${expense.category}`, "receipt", 120 - suffix.length)}${suffix}`;
     files[`receipts/${name}`] = new Uint8Array(await expense.receiptBlob.arrayBuffer());
   }
 
@@ -917,9 +1017,9 @@ function selectedReportRange() {
   }
 
   if (period === "custom") {
-    let from = els.reportFrom.value || isoFromDate(startOfMonth(today));
-    let to = els.reportTo.value || todayIso();
-    if (from > to) [from, to] = [to, from];
+    const from = els.reportFrom.value;
+    const to = els.reportTo.value;
+    if (!from || !to || from > to) return null;
     return { from, to, label: "Свои даты" };
   }
 
@@ -928,6 +1028,7 @@ function selectedReportRange() {
 
 function reportExpenses() {
   const range = selectedReportRange();
+  if (!range) return { range: null, rows: [] };
   const rows = expenses.filter((expense) => {
     const date = expense.date || "";
     return date >= range.from && date <= range.to;
@@ -936,10 +1037,21 @@ function reportExpenses() {
 }
 
 function updateReportSummary() {
-  if (!els.reportSummary) return;
+  reportRevision += 1;
+  preparedReport = null;
   const custom = els.reportPeriod.value === "custom";
   els.reportCustomRange.hidden = !custom;
   const { range, rows } = reportExpenses();
+  const error = range ? "" : !els.reportFrom.value || !els.reportTo.value
+    ? "Укажите обе даты."
+    : "Дата окончания должна быть не раньше даты начала.";
+  els.reportError.textContent = error;
+  els.reportError.hidden = !error;
+  els.reportFrom.setAttribute("aria-invalid", String(Boolean(error)));
+  els.reportTo.setAttribute("aria-invalid", String(Boolean(error)));
+  els.reportSummary.hidden = !range;
+  renderReportActions(rows.length > 0);
+  if (!range) return;
   const currentRows = effectiveExpenses(rows);
   const total = currentRows.reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
   const receipts = rows.filter((expense) => expense.receiptBlob).length;
@@ -949,55 +1061,103 @@ function updateReportSummary() {
     : `${range.label}: за выбранный период расходов нет`;
 }
 
-async function buildReportArchive() {
-  const { range, rows } = reportExpenses();
-  if (!rows.length) {
-    showToast("За выбранный период расходов нет");
-    return null;
+function supportsZipShare(data = null) {
+  if (!navigator.share || typeof File !== "function") return false;
+  try {
+    return !navigator.canShare || navigator.canShare(data || {
+      files: [new File([""], "report.zip", { type: "application/zip" })]
+    });
+  } catch {
+    return false;
   }
+}
+
+function renderReportActions(hasRows = reportExpenses().rows.length > 0) {
+  const canShare = preparedReport ? Boolean(preparedReport.shareData) : supportsZipShare();
+  els.shareModeLabel.textContent = canShare ? "Через меню отправки" : "Скачивание ZIP";
+  els.shareReport.hidden = !canShare;
+  els.shareReport.disabled = preparingReport || !hasRows;
+  els.shareReport.textContent = preparingReport ? "Готовим отчёт…" :
+    preparedReport ? "Отправить отчёт" : "Подготовить отчёт";
+  els.downloadReport.disabled = preparingReport || !hasRows;
+  els.downloadReport.classList.toggle("primary-action", !canShare);
+  els.downloadReport.classList.toggle("secondary-action", canShare);
+}
+
+async function buildReportArchive(range, rows) {
+  const fileName = reportFileName(range);
   const blob = await buildArchiveBlob(rows);
-  return {
-    blob,
-    range,
-    rows,
-    fileName: reportFileName(range)
+  if (!supportsZipShare()) return { blob, fileName, shareData: null };
+  const shareData = {
+    title: "Отчёт расходов",
+    text: `Отчёт расходов ${formatDate(range.from)} – ${formatDate(range.to)}`,
+    files: [new File([blob], fileName, { type: "application/zip" })]
   };
+  return { blob, fileName, shareData: supportsZipShare(shareData) ? shareData : null };
 }
 
 async function shareReport() {
-  const report = await buildReportArchive();
-  if (!report) return;
-
-  if (typeof File === "function" && navigator.share) {
-    const file = new File([report.blob], report.fileName, { type: "application/zip" });
-    const shareData = {
-      title: "Отчет расходов",
-      text: `Отчет расходов ${formatDate(report.range.from)} - ${formatDate(report.range.to)}`,
-      files: [file]
-    };
-    if (!navigator.canShare || navigator.canShare(shareData)) {
-      await navigator.share(shareData);
-      showToast("Отчет передан для отправки");
-      return;
+  if (preparingReport) return;
+  if (preparedReport?.shareData) {
+    preparingReport = true;
+    renderReportActions();
+    let useDownload = false;
+    try {
+      await navigator.share(preparedReport.shareData);
+      showToast("Отчёт передан для отправки");
+    } catch (error) {
+      useDownload = error.name !== "AbortError";
+      showToast(useDownload ? "Меню отправки недоступно. Скачайте ZIP за период." : "Отправка отменена");
+    } finally {
+      preparingReport = false;
+      renderReportActions();
+      if (!els.downloadReport.disabled) (useDownload ? els.downloadReport : els.shareReport).focus();
     }
+    return;
   }
 
-  downloadBlob(report.blob, report.fileName);
-  showToast("Архив скачан, отправьте его из загрузок");
+  const { range, rows } = reportExpenses();
+  if (!rows.length) return;
+  const revision = reportRevision;
+  preparingReport = true;
+  renderReportActions();
+  try {
+    const report = await buildReportArchive(range, rows);
+    if (revision !== reportRevision) return;
+    preparedReport = report;
+    showToast(report.shareData ? "Отчёт готов к отправке" : "Отчёт готов. Скачайте ZIP за период.");
+  } finally {
+    preparingReport = false;
+    renderReportActions();
+    if (revision === reportRevision && preparedReport) {
+      (preparedReport.shareData ? els.shareReport : els.downloadReport).focus();
+    }
+  }
 }
 
 async function downloadReport() {
-  const report = await buildReportArchive();
-  if (!report) return;
-  downloadBlob(report.blob, report.fileName);
-  showToast("Отчет скачан");
+  const { range, rows } = reportExpenses();
+  if (preparingReport || !rows.length) return;
+  preparingReport = true;
+  renderReportActions();
+  try {
+    const report = preparedReport || await buildReportArchive(range, rows);
+    downloadBlob(report.blob, report.fileName);
+    showToast("Отчёт скачан");
+  } finally {
+    preparingReport = false;
+    renderReportActions();
+  }
 }
 
 function reportFileName(range) {
   const settings = getSettings();
   const driver = settings.profileDriver || settings.driver || "voditel";
   const vehicle = settings.profileVehicle || settings.vehicle || "mashina";
-  return safeFileName(`${driver}-${vehicle}-${range.from}-${range.to}.zip`, `rashody-${range.from}-${range.to}.zip`);
+  const suffix = `-${range.from}-${range.to}.zip`;
+  const driverName = safeFileName(driver, "voditel", 32);
+  const vehicleName = safeFileName(vehicle, "mashina", 22);
+  return `${driverName}-${vehicleName}${suffix}`;
 }
 
 function dateFromIso(value) {
@@ -1056,7 +1216,7 @@ function zipBlob(files, type) {
     const local = concatBytes([
       u32(0x04034b50),
       u16(20),
-      u16(0),
+      u16(1 << 11),
       u16(0),
       u16(dosTime),
       u16(dosDate),
@@ -1074,7 +1234,7 @@ function zipBlob(files, type) {
       u32(0x02014b50),
       u16(20),
       u16(20),
-      u16(0),
+      u16(1 << 11),
       u16(0),
       u16(dosTime),
       u16(dosDate),
@@ -1186,6 +1346,7 @@ async function init() {
 
 els.form.addEventListener("submit", async (event) => {
   event.preventDefault();
+  if (savingExpense) return;
   if (receiptProcessing) {
     showToast("Подождите, чек еще готовится");
     return;
@@ -1196,24 +1357,49 @@ els.form.addEventListener("submit", async (event) => {
     return;
   }
   const wasCorrection = Boolean(correctionSource);
-  const expense = await collectForm();
-  if (!expense.date || !Number.isFinite(expense.amount) || expense.amount <= 0) {
+  const expense = collectForm();
+  if (!expense.date || Number.isNaN(dateFromIso(expense.date).getTime())
+    || !Number.isFinite(expense.amount) || expense.amount <= 0) {
     showToast("Проверьте дату и сумму");
     return;
   }
-  setSettings({
-    driver: expense.driver,
-    vehicle: expense.vehicle,
-    currentVehicleStatus: wasCorrection ? getSettings().currentVehicleStatus : expense.vehicleStatus
-  });
-  if (!wasCorrection) {
-    const activeTrip = getActiveTrip();
-    if (activeTrip) setActiveTrip({ ...activeTrip, currentStatus: expense.vehicleStatus });
+  savingExpense = true;
+  els.expenseError.hidden = true;
+  els.form.inert = true;
+  els.form.setAttribute("aria-busy", "true");
+  els.saveExpenseButton.disabled = true;
+  const buttonText = els.saveExpenseButton.textContent;
+  els.saveExpenseButton.textContent = "Сохраняем…";
+  try {
+    expense.receiptHash = await sha256Blob(expense.receiptBlob);
+    await saveExpense(expense);
+  } catch (error) {
+    let message = "Не удалось сохранить расход. Данные остались в форме, попробуйте ещё раз.";
+    if (error.name === "QuotaExceededError") message = "В браузере не хватает места. Данные остались в форме.";
+    if (error.name === "InvalidStateError" && error.message.startsWith("Этот расход")) {
+      message = error.message;
+      await refresh().catch(console.error);
+    }
+    els.expenseError.textContent = message;
+    els.expenseError.hidden = false;
+    return;
+  } finally {
+    savingExpense = false;
+    els.form.inert = false;
+    els.form.removeAttribute("aria-busy");
+    els.saveExpenseButton.disabled = false;
+    els.saveExpenseButton.textContent = buttonText;
+    if (!els.expenseError.hidden) els.expenseError.focus();
   }
-  await saveExpense(expense);
-  resetFormAfterSave();
-  hydrateSettings();
-  await refresh();
+  restoreNewExpenseForm();
+  els.search.value = "";
+  try {
+    await refresh();
+  } catch (error) {
+    console.error(error);
+    showToast("Запись сохранена. Переоткройте приложение, чтобы обновить журнал.");
+    return;
+  }
   switchTab("journal");
   showToast(wasCorrection ? "Исправление сохранено" : "Расход сохранен");
 });
@@ -1228,9 +1414,7 @@ els.profileForm.addEventListener("submit", async (event) => {
     driver: profileDriver,
     vehicle: profileVehicle
   });
-  els.driver.value = profileDriver;
-  els.vehicle.value = profileVehicle;
-  els.driverSummary.textContent = [profileDriver, profileVehicle].filter(Boolean).join(" · ") || "Профиль не заполнен";
+  hydrateSettings();
   showToast("Профиль сохранен");
   switchTab("entry");
 });
@@ -1248,8 +1432,9 @@ els.receiptPreviewOpen?.addEventListener("click", () => {
 els.openProfile.addEventListener("click", () => switchTab("profile"));
 
 els.cancelCorrection.addEventListener("click", () => {
-  resetFormAfterSave();
-  hydrateSettings();
+  if (savingExpense) return;
+  restoreNewExpenseForm();
+  els.amount.focus();
   showToast("Исправление отменено");
 });
 
@@ -1297,15 +1482,29 @@ els.tripForm.addEventListener("submit", (event) => {
 els.endTrip.addEventListener("click", () => {
   const trip = getActiveTrip();
   if (!trip) return;
-  if (!confirm(`Завершить рейс ${trip.from} → ${trip.to}?`)) return;
+  els.endTripDialog.dataset.tripId = trip.id;
+  els.endTripDialog.returnValue = "";
+  els.endTripRoute.textContent = `${trip.from} → ${trip.to}`;
+  els.endTripDialog.showModal();
+});
+
+els.endTripDialog.addEventListener("close", () => {
+  if (els.endTripDialog.returnValue !== "complete") return;
+  const trip = getActiveTrip();
+  if (!trip || trip.id !== els.endTripDialog.dataset.tripId) {
+    hydrateSettings();
+    showToast("Рейс уже изменился. Проверьте текущий рейс.");
+    return;
+  }
   setSettings({ activeTrip: null, currentVehicleStatus: "Стоянка" });
   els.vehicleStatus.value = "Стоянка";
   renderCurrentTrip();
+  els.startTrip.focus();
   showToast("Рейс завершён, машина на стоянке");
 });
 
 els.tabs.forEach((tab) => {
-  tab.addEventListener("click", () => switchTab(tab.dataset.tab));
+  tab.addEventListener("click", () => switchTab(tab.dataset.tab, tab));
 });
 
 els.search.addEventListener("input", renderExpenses);
@@ -1314,20 +1513,22 @@ els.clearSearch.addEventListener("click", () => {
   renderExpenses();
 });
 
-els.exportExcel.addEventListener("click", exportExcel);
-els.exportArchive.addEventListener("click", exportArchive);
+els.exportExcel.addEventListener("click", () => {
+  exportExcel().catch(() => showToast("Не удалось скачать Excel"));
+});
+els.exportArchive.addEventListener("click", () => {
+  exportArchive().catch(() => showToast("Не удалось скачать ZIP"));
+});
 
 els.reportForm?.addEventListener("submit", (event) => event.preventDefault());
 els.reportPeriod?.addEventListener("change", updateReportSummary);
 els.reportFrom?.addEventListener("change", updateReportSummary);
 els.reportTo?.addEventListener("change", updateReportSummary);
 els.shareReport?.addEventListener("click", () => {
-  shareReport().catch((error) => {
-    showToast(error.name === "AbortError" ? "Отправка отменена" : error.message || "Не удалось отправить отчет");
-  });
+  shareReport().catch(() => showToast("Не удалось подготовить отчёт. Попробуйте ещё раз."));
 });
 els.downloadReport?.addEventListener("click", () => {
-  downloadReport().catch((error) => showToast(error.message || "Не удалось скачать отчет"));
+  downloadReport().catch(() => showToast("Не удалось скачать отчёт. Попробуйте ещё раз."));
 });
 
 init().catch((error) => {

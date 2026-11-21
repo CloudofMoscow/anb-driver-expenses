@@ -2,7 +2,7 @@
 <html lang="ru">
   <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
     <meta name="theme-color" content="#000000">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Расходы">
@@ -11,24 +11,30 @@
     <link rel="manifest" href="./manifest.webmanifest?v=13">
     <link rel="icon" href="./icon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="./apple-touch-icon.png">
-    <link rel="stylesheet" href="./styles.css?v=13">
+    <link rel="stylesheet" href="./styles.css?v=18">
   </head>
   <body>
     <div class="app-shell">
-      <header class="topbar">
-        <div class="brand">
-          <span class="brand-mark">
-            <img src="./anb-logo.svg" alt="ANB Group">
-          </span>
-          <div>
-            <p class="eyebrow">ANB Group</p>
-            <h1>Расходы водителя</h1>
+      <nav class="tabs" aria-label="Разделы">
+        <button class="tab-button active" type="button" data-tab="entry" aria-controls="entryPanel" aria-current="true">Новый</button>
+        <button class="tab-button" type="button" data-tab="journal" aria-controls="journalPanel">Журнал</button>
+        <button class="tab-button" type="button" data-tab="export" aria-controls="exportPanel">Отчёт</button>
+        <button class="tab-button" type="button" data-tab="profile" aria-controls="profilePanel">Профиль</button>
+      </nav>
+      <main class="app-content" id="appContent">
+        <header class="topbar">
+          <div class="brand">
+            <span class="brand-mark">
+              <img src="./anb-logo.svg" alt="ANB Group">
+            </span>
+            <div>
+              <p class="eyebrow">ANB Group</p>
+              <h1>Расходы водителя</h1>
+            </div>
           </div>
-        </div>
-        <div class="status-pill" id="storageStatus">На телефоне</div>
-      </header>
+          <div class="status-pill" id="storageStatus">На телефоне</div>
+        </header>
 
-      <main>
         <section class="summary-grid" aria-label="Сводка">
           <div class="summary-item">
             <span>Сегодня</span>
@@ -44,15 +50,8 @@
           </div>
         </section>
 
-        <nav class="tabs" aria-label="Разделы">
-          <button class="tab-button active" type="button" data-tab="entry">Новый</button>
-          <button class="tab-button" type="button" data-tab="journal">Журнал</button>
-          <button class="tab-button" type="button" data-tab="export">Отчет</button>
-          <button class="tab-button" type="button" data-tab="profile">Профиль</button>
-        </nav>
-
-        <section class="tab-panel active" id="entryPanel" data-panel="entry">
-          <section class="trip-context" aria-label="Текущий рейс">
+        <section class="tab-panel active" id="entryPanel" data-panel="entry" aria-label="Новый расход" tabindex="-1">
+          <section class="trip-context" id="tripContext" aria-label="Текущий рейс">
             <div class="trip-context-copy">
               <p class="section-kicker">Текущий рейс</p>
               <h2 id="currentTripTitle">Вне рейса</h2>
@@ -168,11 +167,12 @@
               <textarea id="note" name="note" rows="3" placeholder="Коротко по расходу"></textarea>
             </label>
 
-            <button class="primary-action save-expense" id="saveExpenseButton" type="submit">Сохранить расход</button>
+            <p class="field-error" id="expenseError" role="alert" tabindex="-1" hidden></p>
+            <button class="primary-action" id="saveExpenseButton" type="submit">Сохранить расход</button>
           </form>
         </section>
 
-        <section class="tab-panel" id="journalPanel" data-panel="journal">
+        <section class="tab-panel" id="journalPanel" data-panel="journal" aria-label="Журнал расходов" tabindex="-1" hidden>
           <div class="toolbar">
             <label class="search-field">
               <span>Поиск</span>
@@ -184,11 +184,11 @@
           <p class="empty-state" id="emptyState">Записей пока нет</p>
         </section>
 
-        <section class="tab-panel" id="profilePanel" data-panel="profile">
+        <section class="tab-panel" id="profilePanel" data-panel="profile" aria-label="Профиль водителя" tabindex="-1" hidden>
           <form class="profile-form" id="profileForm" autocomplete="on">
             <div class="profile-heading">
               <h2>Профиль водителя</h2>
-              <p>Эти данные будут автоматически подставляться в новый расход.</p>
+              <p>Имя и номер машины подставляются в новые расходы. Если оставить поля пустыми, в отчёте этих данных не будет.</p>
             </div>
             <div class="field-row two">
               <label>
@@ -204,11 +204,11 @@
           </form>
         </section>
 
-        <section class="tab-panel" id="exportPanel" data-panel="export">
+        <section class="tab-panel" id="exportPanel" data-panel="export" aria-label="Отчёт для офиса" tabindex="-1" hidden>
           <form class="report-card" id="reportForm">
             <div class="profile-heading">
-              <h2>Отчет для офиса</h2>
-              <p>Выберите период, приложение соберет Excel и чеки в один архив.</p>
+              <h2>Отчёт для офиса</h2>
+              <p>Выберите период. В ZIP войдут Excel, JSON и чеки за эти даты.</p>
             </div>
 
             <label>
@@ -225,15 +225,16 @@
             <div class="field-row two report-custom-range" id="reportCustomRange" hidden>
               <label>
                 <span>С даты</span>
-                <input id="reportFrom" name="reportFrom" type="date">
+                <input id="reportFrom" name="reportFrom" type="date" aria-describedby="reportError">
               </label>
               <label>
                 <span>По дату</span>
-                <input id="reportTo" name="reportTo" type="date">
+                <input id="reportTo" name="reportTo" type="date" aria-describedby="reportError">
               </label>
             </div>
 
-            <div class="report-summary" id="reportSummary">Нет данных для отчета</div>
+            <p class="field-error" id="reportError" role="alert" hidden></p>
+            <div class="report-summary" id="reportSummary" role="status">Нет данных для отчёта</div>
 
             <div class="device-panel">
               <div>
@@ -247,28 +248,28 @@
             </div>
 
             <div class="report-actions">
-              <button class="primary-action" id="shareReport" type="button">Отправить отчет</button>
+              <button class="primary-action" id="shareReport" type="button">Подготовить отчёт</button>
+              <button class="secondary-action" id="downloadReport" type="button">Скачать ZIP за период</button>
             </div>
           </form>
 
           <details class="advanced-report">
-            <summary>Дополнительно для офиса</summary>
+            <summary>Выгрузки за всю историю</summary>
             <div class="export-actions">
-              <button class="secondary-action" id="downloadReport" type="button">Скачать ZIP</button>
-              <button class="secondary-action" id="exportExcel" type="button">Только Excel</button>
-              <button class="secondary-action" id="exportArchive" type="button">Все чеки</button>
+              <button class="secondary-action" id="exportExcel" type="button">Excel за всё время</button>
+              <button class="secondary-action" id="exportArchive" type="button">ZIP за всё время</button>
             </div>
           </details>
         </section>
       </main>
     </div>
 
-    <dialog class="trip-dialog" id="tripDialog">
+    <dialog class="trip-dialog" id="tripDialog" aria-labelledby="tripDialogTitle">
       <form class="trip-form" id="tripForm">
         <div class="dialog-heading">
           <div>
             <p class="section-kicker">Новый рейс</p>
-            <h2>Куда едем</h2>
+            <h2 id="tripDialogTitle">Куда едем</h2>
           </div>
           <button class="dialog-close" id="closeTripDialog" type="button" aria-label="Закрыть">×</button>
         </div>
@@ -299,7 +300,22 @@
       </form>
     </dialog>
 
+    <dialog class="trip-dialog" id="endTripDialog" aria-labelledby="endTripTitle" aria-describedby="endTripRoute">
+      <form class="trip-form" method="dialog">
+        <div class="dialog-heading">
+          <div>
+            <h2 id="endTripTitle">Завершить рейс?</h2>
+            <p id="endTripRoute"></p>
+          </div>
+        </div>
+        <div class="field-row two">
+          <button class="secondary-action" value="cancel" autofocus>Продолжить рейс</button>
+          <button class="primary-action" value="complete">Завершить рейс</button>
+        </div>
+      </form>
+    </dialog>
+
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="./app.js?v=13" type="module"></script>
+    <script src="./app.js?v=18" type="module"></script>
   </body>
 </html>

@@ -9,10 +9,15 @@
   --graphite: #2b2b2b;
   --accent: #d71920;
   --accent-strong: #b61117;
+  --accent-on-dark: #ff777b;
   --accent-soft: #fff0f0;
   --red: #d71920;
   --danger: #b61117;
   --shadow: 0 10px 28px rgba(0, 0, 0, 0.08);
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
   color-scheme: light;
   font-family: Inter, "Segoe UI", Roboto, Arial, sans-serif;
 }
@@ -44,10 +49,50 @@ button {
   cursor: pointer;
 }
 
+button:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
 .app-shell {
+  --gutter: clamp(14px, 4vw, 28px);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
   width: min(100%, 920px);
   margin: 0 auto;
-  padding: 16px clamp(14px, 4vw, 28px) 36px;
+  padding: calc(16px + var(--safe-top)) calc(var(--gutter) + var(--safe-right))
+    calc(36px + var(--safe-bottom)) calc(var(--gutter) + var(--safe-left));
+}
+
+.app-content {
+  display: contents;
+}
+
+.app-content > .topbar {
+  grid-row: 1;
+}
+
+.app-content > .summary-grid {
+  grid-row: 2;
+}
+
+.app-shell > .tabs {
+  grid-row: 3;
+}
+
+.app-content > .tab-panel {
+  grid-row: 4;
+  min-inline-size: 0;
+}
+
+.tab-panel:focus {
+  outline: none;
+}
+
+:is(button, summary):focus-visible,
+.file-field:focus-within {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 2px;
 }
 
 .topbar {
@@ -85,7 +130,7 @@ button {
 
 .eyebrow {
   margin: 0 0 2px;
-  color: var(--accent);
+  color: var(--accent-on-dark);
   font-size: 0.78rem;
   font-weight: 700;
   text-transform: uppercase;
@@ -105,7 +150,7 @@ h1 {
   border: 1px solid rgba(228, 58, 58, 0.62);
   border-radius: 8px;
   background: rgba(228, 58, 58, 0.16);
-  color: var(--accent);
+  color: var(--accent-on-dark);
   font-size: 0.86rem;
   font-weight: 700;
 }
@@ -175,7 +220,7 @@ h1 {
 
 .tab-button.active {
   background: var(--black);
-  color: var(--accent);
+  color: var(--accent-on-dark);
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.18);
 }
 
@@ -214,10 +259,14 @@ h1 {
 
 .section-kicker {
   margin: 0 0 7px;
-  color: var(--accent);
+  color: var(--accent-strong);
   font-size: 0.76rem;
   font-weight: 900;
   text-transform: uppercase;
+}
+
+.trip-context .section-kicker {
+  color: var(--accent-on-dark);
 }
 
 .trip-context h2,
@@ -308,6 +357,7 @@ h1 {
 .recent-places {
   display: flex;
   flex-wrap: wrap;
+  min-inline-size: 0;
   gap: 7px;
   margin-top: -5px;
 }
@@ -317,7 +367,10 @@ h1 {
 }
 
 .recent-places button {
-  min-height: 34px;
+  min-height: 44px;
+  min-inline-size: 0;
+  max-inline-size: 100%;
+  overflow-wrap: anywhere;
   border: 1px solid var(--line);
   border-radius: 7px;
   background: #fff;
@@ -325,6 +378,21 @@ h1 {
   padding: 7px 9px;
   font-size: 0.8rem;
   font-weight: 750;
+}
+
+.trip-context-copy,
+.driver-strip > div,
+.tag,
+.meta-line,
+.correction-banner {
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+.field-error {
+  margin: 0;
+  color: var(--danger);
+  font-weight: 700;
 }
 
 .expense-form,
@@ -341,6 +409,7 @@ h1 {
 
 .expense-form {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 14px;
   padding: clamp(14px, 4vw, 22px);
 }
@@ -353,6 +422,7 @@ h1 {
 
 .report-card {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 14px;
   margin-bottom: 12px;
   padding: clamp(14px, 4vw, 22px);
@@ -416,6 +486,17 @@ textarea:focus {
 
 .field-row.two {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+input[type="date"] {
+  display: block;
+  min-inline-size: 0;
+  max-inline-size: 100%;
+}
+
+input[type="date"]::-webkit-date-and-time-value {
+  min-inline-size: 0;
+  text-align: start;
 }
 
 .file-field {
@@ -572,7 +653,6 @@ textarea:focus {
 
 .expense-card.superseded {
   background: #f7f7f7;
-  opacity: 0.72;
 }
 
 .expense-card-main {
@@ -636,7 +716,7 @@ textarea:focus {
 
 .tag-muted {
   background: #e5e6e8;
-  color: #5f636a;
+  color: #363a40;
 }
 
 .correction-note {
@@ -788,8 +868,11 @@ textarea:focus {
 }
 
 .trip-dialog {
-  width: min(calc(100% - 28px), 560px);
-  max-height: calc(100dvh - 28px);
+  --dialog-side: max(var(--safe-left), var(--safe-right));
+  --dialog-block: max(var(--safe-top), var(--safe-bottom));
+  width: min(calc(100% - 28px - 2 * var(--dialog-side)), 560px);
+  max-height: calc(100vh - 28px - 2 * var(--dialog-block));
+  max-height: calc(100dvh - 28px - 2 * var(--dialog-block));
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #fff;
@@ -902,9 +985,22 @@ textarea:focus {
   opacity: 1;
 }
 
-@media (max-width: 680px) {
+@media (max-width: 680px), (max-width: 950px) and (max-height: 500px) {
   .app-shell {
-    padding: 12px 12px calc(94px + env(safe-area-inset-bottom));
+    --gutter: 12px;
+    height: 100vh;
+    height: 100dvh;
+    grid-template-rows: minmax(0, 1fr) auto;
+    padding: var(--safe-top) 0 max(8px, var(--safe-bottom));
+  }
+
+  .app-content {
+    display: block;
+    grid-row: 1;
+    overflow-y: auto;
+    min-height: 0;
+    padding: 12px calc(var(--gutter) + var(--safe-right)) 14px calc(var(--gutter) + var(--safe-left));
+    scroll-padding-block: 12px;
   }
 
   .topbar {
@@ -942,16 +1038,14 @@ textarea:focus {
     font-size: 0.96rem;
   }
 
-  .tabs {
-    position: fixed;
-    inset: auto 10px max(10px, env(safe-area-inset-bottom));
-    z-index: 30;
-    margin: 0;
-    box-shadow: 0 16px 38px rgba(0, 0, 0, 0.2);
+  .app-shell > .tabs {
+    grid-row: 2;
+    margin: 0 calc(10px + var(--safe-right)) 0 calc(10px + var(--safe-left));
+    box-shadow: var(--shadow);
   }
 
   .tab-button {
-    min-height: 42px;
+    min-height: 44px;
     padding: 8px 6px;
     font-size: 0.88rem;
   }
@@ -970,12 +1064,6 @@ textarea:focus {
 
   .driver-strip {
     align-items: flex-start;
-  }
-
-  .save-expense {
-    position: sticky;
-    bottom: calc(78px + env(safe-area-inset-bottom));
-    z-index: 12;
   }
 
   .expense-amount {
